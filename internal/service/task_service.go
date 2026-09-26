@@ -32,3 +32,54 @@ func (s *TaskService) CreateTask(task domain.Task) (*domain.Task, error){
 
 	return &task,  nil
 }
+
+func (us *TaskService) UpdateStatus(id int, userID int, newStatus domain.TaskStatus) (*domain.Task, error) {
+	if id <= 0 {
+		return nil, errors.New("Такого пользователя не существует!")
+	}
+	if userID <= 0{
+		return nil, errors.New("Такой задачи не существует!")
+	}
+
+	task, err := us.Repo.GetTaskID(id)
+	if err != nil{
+		return nil, err
+	}
+	
+
+	if task.UserID != userID{
+		return nil, errors.New("нет прав на изменение чужой задачи!")
+	}
+	if task.Status == domain.TaskStatusCancelled && newStatus == domain.TaskStatusCompleted{
+		return nil, errors.New("Нельзя завершить отмененную задачу!")
+	}
+
+	task.Status = newStatus
+	err = us.Repo.UpdateTask(task)
+	if err != nil{
+		return nil, err
+	}
+
+	return task, nil 
+}
+
+func (gtid *TaskService) GetTaskID(id int) (*domain.Task ,error){
+	if id == 0{
+		return nil, errors.New("Такого пользователя не существует!")
+	}
+	
+	task, err := gtid.Repo.GetTaskID(id)
+	if err != nil{
+		return nil, err
+	}
+	return task, nil
+	//if task.UserID == 0{
+	//	return 0, errors.New("Такого пользователя не существует!")
+	//}
+//
+	//err := gtid.Repo.GetTaskID(task)
+	//if err != nil{
+	//	return 0, err
+	//}
+	//return task.ID, nil
+}
