@@ -1,7 +1,7 @@
 package domain
 
 type TaskRepository interface{
-	CreateTask()
+	CreateTask(Task) error
 	GetTaskID()
 	GetList()
 	UpdateTask()
