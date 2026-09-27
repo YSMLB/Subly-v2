@@ -5,7 +5,7 @@ type TaskRepository interface{
 	GetTaskID(id int) (*Task, error)
 	GetList()
 	UpdateTask(task *Task) error
-	DeleteTask()
+	DeleteTask(taskID int) error
 }
 
 type ScheduleRepository interface{

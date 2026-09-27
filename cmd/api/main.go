@@ -20,7 +20,7 @@ func (m *MockTaskRepo) GetTaskID(id int) (*domain.Task, error) {
 	fmt.Println("[MOCK DB] Репозиторий подтвердил поиск задачи")
 	return &domain.Task{
 		ID: id,
-		UserID: 2,
+		UserID: 3,
 		Title: "title",
 	}, nil
 }
@@ -29,7 +29,10 @@ func (m *MockTaskRepo) UpdateTask(task *domain.Task) error {
 	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление задачи")
 	return nil
 }
-func (m *MockTaskRepo) DeleteTask() {}
+func (m *MockTaskRepo) DeleteTask(taskID int) error {
+	fmt.Println("[MOCK DB] Репозиторий подтвердил удаление задачи")
+	return nil
+}
 
 func main() {
 	fmt.Println("--- Запуск проверки логики Subly ---")
@@ -107,5 +110,20 @@ func main() {
 		fmt.Println("error", err)
 	}else{
 		fmt.Println("Успешно, статус задачи стал: ", testTask1.Status)
+	}
+
+	//проверяем новый метод
+	fmt.Println("\n[ТЕСТ 5] Проверяем DeleteTask...")
+	testTask2 := domain.Task{
+		ID: 3,
+		Title: "test delete task",
+		UserID: 3,
+		Description: "test",
+	}
+	err = taskService.DeleteTask(testTask2.ID, testTask2.UserID)
+	if err != nil{
+		fmt.Println("error", err)
+	}else{
+		fmt.Println("Успех, задача удалена")
 	}
 }

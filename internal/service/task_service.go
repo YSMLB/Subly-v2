@@ -83,3 +83,27 @@ func (gtid *TaskService) GetTaskID(id int) (*domain.Task ,error){
 	//}
 	//return task.ID, nil
 }
+
+func (dt *TaskService) DeleteTask(taskID int, userID int) error{
+	if taskID <= 0{
+		return errors.New("Такой задачи не существует!")
+	}
+	if userID <= 0 {
+		return errors.New("Такого пользователя не существует!")
+	}
+	
+	task, err := dt.Repo.GetTaskID(taskID)
+	if err != nil{
+		return err
+	}
+	if task.UserID != userID{
+		return errors.New("Вы не можете удалить чужую задачу!")
+	}
+
+	err = dt.Repo.DeleteTask(task.ID)
+	if err != nil{
+		return err
+	}
+
+	return nil
+}
