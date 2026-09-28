@@ -3,7 +3,7 @@ package domain
 type TaskRepository interface{
 	CreateTask(Task) error
 	GetTaskID(id int) (*Task, error)
-	GetList()
+	GetList(userID int) ([]Task, error)
 	UpdateTask(task *Task) error
 	DeleteTask(taskID int) error
 }

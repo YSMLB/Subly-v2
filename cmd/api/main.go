@@ -24,7 +24,19 @@ func (m *MockTaskRepo) GetTaskID(id int) (*domain.Task, error) {
 		Title: "title",
 	}, nil
 }
-func (m *MockTaskRepo) GetList()    {}
+func (m *MockTaskRepo) GetList(userID int) ([]domain.Task, error)    {
+	fmt.Println("[MOCK DB] Репозиторий подвердил поиск задач")
+	return []domain.Task{
+		{ID: userID,
+		UserID: 6,
+		Title: "саня ананьев чмо",
+		Description: "углерод",},
+		{ID: userID,
+		UserID: 7,
+		Title: "максименков тоже",
+		Description: "азот",},
+	}, nil
+}
 func (m *MockTaskRepo) UpdateTask(task *domain.Task) error {
 	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление задачи")
 	return nil
@@ -125,5 +137,20 @@ func main() {
 		fmt.Println("error", err)
 	}else{
 		fmt.Println("Успех, задача удалена")
+	}
+
+	//проверка последнего метода
+	fmt.Println("\n[Тест 6] Првоеряем GetList...")
+	testTask3 := domain.Task{
+		ID: 4,
+		Title: "test get list",
+		UserID: 4,
+		Description: "test",
+	}
+	testTaskList, err := taskService.GetList(testTask3.UserID)
+	if err != nil{
+		fmt.Println("error", err)
+	}else{
+		fmt.Println("Успех, список выдан", testTaskList)
 	}
 }

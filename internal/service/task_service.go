@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"subly-v2/internal/domain"
 	"time"
 )
@@ -106,4 +107,16 @@ func (dt *TaskService) DeleteTask(taskID int, userID int) error{
 	}
 
 	return nil
+}
+
+func (gl *TaskService) GetList(userID int) ([]domain.Task, error){
+	if userID <= 0 {
+		return nil, errors.New("Такого пользователя не сущетсвует!")
+	}
+	task, err := gl.Repo.GetList(userID)
+	if err != nil{
+		fmt.Println("error", err)
+		return nil, err
+	}
+	return task, nil
 }
