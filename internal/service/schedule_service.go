@@ -49,3 +49,7 @@ func (as *ScheduleService)AddSlot(schedule domain.ScheduleSlot) (*domain.Schedul
 
 	return &schedule, nil
 }
+
+func (gst *ScheduleService) GetScheduleToday() error{
+	return nil
+}

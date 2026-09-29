@@ -53,7 +53,9 @@ func (m *MockScheduleRepo) AddSlot(schedule domain.ScheduleSlot) error{
 	fmt.Println("[MOCK DB] Репозиторий подтвердил добавления занятий")
 	return nil
 }
-func (m *MockScheduleRepo)GetScheduleToday(){}
+func (m *MockScheduleRepo)GetScheduleToday() error{
+	return nil
+}
 func (m *MockScheduleRepo)UpdateTaskSchedule(){}
 func main() {
 	fmt.Println("--- Запуск проверки логики Subly ---")
