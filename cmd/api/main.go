@@ -9,6 +9,9 @@ import (
 // MockTaskRepo — фейковое хранилище для проверки сервиса без реальной базы данных
 type MockTaskRepo struct{}
 
+//MOckScheduleRepo - фейк хранилище для проверки сервиса без реальной бд
+type MockScheduleRepo struct{}
+
 // Реализуем метод создания задачи (тот самый, который вызывает сервис)
 func (m *MockTaskRepo) CreateTask(task domain.Task) error {
 	fmt.Println("[MOCK DB] Задача успешно записана в базу:", task.Title)
@@ -46,15 +49,28 @@ func (m *MockTaskRepo) DeleteTask(taskID int) error {
 	return nil
 }
 
+func (m *MockScheduleRepo) AddSlot(schedule domain.ScheduleSlot) error{
+	fmt.Println("[MOCK DB] Репозиторий подтвердил добавления занятий")
+	return nil
+}
+func (m *MockScheduleRepo)GetScheduleToday(){}
+func (m *MockScheduleRepo)UpdateTaskSchedule(){}
 func main() {
 	fmt.Println("--- Запуск проверки логики Subly ---")
 
 	// 1. Создаем заглушку репозитория
 	mockRepo := &MockTaskRepo{}
 
+	// 1. Создали заглушку репы
+	mockRepoSchedule := &MockScheduleRepo{}
+
 	// 2. Инициализируем наш сервис задач
 	taskService := &service.TaskService{
 		Repo: mockRepo,
+	}
+
+	scheduleService := &service.ScheduleService{
+		Repo: mockRepoSchedule,
 	}
 
 	// -------------------------------------------------------------
@@ -152,5 +168,35 @@ func main() {
 		fmt.Println("error", err)
 	}else{
 		fmt.Println("Успех, список выдан", testTaskList)
+	}
+
+	fmt.Println("\n[Расписание]")
+
+	//тестим метод AddSlot
+	fmt.Println("\n[Тест 1] Проверяем AddSlot...")
+	scheduleTest1 := domain.ScheduleSlot{
+		UserID: 1,
+		Subject: "МДК 05.02",
+		Room: "1000-7",
+		StartTime: "09:00",
+		EndTime: "10:30",
+		DayOfWeek: 3,
+		Type: domain.SlotTypeLecture,
+		Parity: domain.WeekParityBoth,
+	}
+	testSchedule1, err := scheduleService.AddSlot(scheduleTest1)
+	if err != nil{
+		fmt.Println("error: ", err)
+	}else{
+		fmt.Println("Успех!",
+	"\n id пользователя: ", scheduleTest1.UserID,
+	"\n название предмета: ", scheduleTest1.Subject,
+	"\n кабинет: ", scheduleTest1.Room,
+	"\n день недели: ", scheduleTest1.DayOfWeek,
+	"\n тип: ", scheduleTest1.Type,
+	"\n четность: ", scheduleTest1.Parity,
+	"\n время начала: ", scheduleTest1.StartTime,
+	"\n время окончания: ", scheduleTest1.EndTime,)
+	fmt.Println(testSchedule1)
 	}
 }
