@@ -53,8 +53,18 @@ func (m *MockScheduleRepo) AddSlot(schedule domain.ScheduleSlot) error{
 	fmt.Println("[MOCK DB] Репозиторий подтвердил добавления занятий")
 	return nil
 }
-func (m *MockScheduleRepo)GetScheduleToday() error{
-	return nil
+func (m *MockScheduleRepo)GetScheduleToday(userID int, dayOfweek int) (*domain.ScheduleSlot , error){
+	fmt.Println("[MOCK DB] Репозиторий подтверди поиск и выдачу занятий")
+	return &domain.ScheduleSlot{
+		UserID: 3,
+		Subject: "МДК 05.02",
+		Room: "401",
+		StartTime: "08:30",
+		EndTime: "10:00",
+		DayOfWeek: 6,
+		Type: domain.SlotTypeLecture,
+		Parity: domain.WeekParityBoth,
+	}, nil
 }
 func (m *MockScheduleRepo)UpdateTaskSchedule(){}
 func main() {
@@ -172,7 +182,7 @@ func main() {
 		fmt.Println("Успех, список выдан", testTaskList)
 	}
 
-	fmt.Println("\n[Расписание]")
+	fmt.Println("\n[Расписание]")//schedule
 
 	//тестим метод AddSlot
 	fmt.Println("\n[Тест 1] Проверяем AddSlot...")
@@ -200,5 +210,36 @@ func main() {
 	"\n время начала: ", scheduleTest1.StartTime,
 	"\n время окончания: ", scheduleTest1.EndTime,)
 	fmt.Println(testSchedule1)
+	}
+
+
+	//test method Get...
+	fmt.Println("\n[Тест 2] Проверяем GetScheduleToday...")
+
+	scheduleTest2 := domain.ScheduleSlot{
+		UserID: 2,
+		Subject: "МДК 05.01",
+		Room: "402",
+		StartTime: "08:30",
+		EndTime: "10:00",
+		DayOfWeek: 5,
+		Type: domain.SlotTypeLecture,
+		Parity: domain.WeekParityBoth,
+	}
+
+	testSchedule2, err := scheduleService.GetScheduleToday(scheduleTest2.UserID, scheduleTest2.DayOfWeek, scheduleTest2.Parity)
+	if err != nil{
+		fmt.Println("error: ", err)
+	}else{
+		fmt.Println("Успех!",
+	"\n id пользователя: ", testSchedule2.UserID,
+	"\n название предмета: ", testSchedule2.Subject,
+	"\n кабинет: ", testSchedule2.Room,
+	"\n день недели: ", testSchedule2.DayOfWeek,
+	"\n тип: ", testSchedule2.Type,
+	"\n четность: ", testSchedule2.Parity,
+	"\n время начала: ", testSchedule2.StartTime,
+	"\n время окончания: ", testSchedule2.EndTime,)
+	fmt.Println(testSchedule2)
 	}
 }

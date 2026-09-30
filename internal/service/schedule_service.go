@@ -50,6 +50,44 @@ func (as *ScheduleService)AddSlot(schedule domain.ScheduleSlot) (*domain.Schedul
 	return &schedule, nil
 }
 
-func (gst *ScheduleService) GetScheduleToday() error{
-	return nil
+func (gst *ScheduleService) GetScheduleToday(userID int, dayOfWeek int, parity domain.WeekParity) (*domain.ScheduleSlot, error){
+	if userID <= 0{
+		return nil, errors.New("Некорректный userID")
+	}
+	if dayOfWeek <= 0 || dayOfWeek > 7{
+		return nil, errors.New("Некорректный день недели")
+	}
+	if parity != domain.WeekParityBoth && parity != domain.WeekParityEven && parity != domain.WeekParityOdd{
+		return nil, errors.New("Некорректная четность недели")
+	}
+
+	schedule, err := gst.Repo.GetScheduleToday(userID, dayOfWeek)
+
+	if err != nil{
+		fmt.Println("error: ", err)
+		return nil, err
+	}
+
+	if schedule.Parity != domain.WeekParityBoth || schedule.Parity != parity {
+		return nil, errors.New("На этой неделе нет таких пар")
+	}
+
+	if schedule.Subject == ""{
+		return nil, nil
+	}
+	
+
+	return schedule, nil
 }
+//Even (и́вен) — Чётная неделя (в вузах часто «знаменатель»)
+//💡 Лайфхак: в слове even ровно 4 буквы (4 — чётное число) 
+//→
+//→ Чётная!
+//
+//2. Odd (одд) — Нечётная неделя (в вузах «числитель»)
+//💡 Лайфхак: в слове odd ровно 3 буквы (3 — нечётное число) 
+//→
+//→ Нечётная!
+//
+//3. Both (бо́ус) — Обе недели (и та, и другая)
+//Означает, что занятие проходит каждую неделю подряд, без разницы — числитель сейчас или знаменатель.
