@@ -66,7 +66,9 @@ func (m *MockScheduleRepo)GetScheduleToday(userID int, dayOfweek int) (*domain.S
 		Parity: domain.WeekParityBoth,
 	}, nil
 }
-func (m *MockScheduleRepo)UpdateTaskSchedule(){}
+func (m *MockScheduleRepo)UpdateTaskSchedule(subject string) error{
+	return nil
+}
 func main() {
 	fmt.Println("--- Запуск проверки логики Subly ---")
 

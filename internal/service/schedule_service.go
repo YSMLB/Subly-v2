@@ -79,6 +79,17 @@ func (gst *ScheduleService) GetScheduleToday(userID int, dayOfWeek int, parity d
 
 	return schedule, nil
 }
+
+func (uts *ScheduleService) UpdateTaskSchedule(subject string) error{
+	return nil
+}
+
+
+
+
+
+
+
 //Even (и́вен) — Чётная неделя (в вузах часто «знаменатель»)
 //💡 Лайфхак: в слове even ровно 4 буквы (4 — чётное число) 
 //→
