@@ -11,7 +11,7 @@ type TaskRepository interface{
 type ScheduleRepository interface{
 	AddSlot(schedule ScheduleSlot)  error
 	GetScheduleToday(userID int, dayOfWeek int) (*ScheduleSlot, error)
-	UpdateTaskSchedule(subjuct string) error
+	UpdateTaskSchedule(schedule ScheduleSlot) error
 }
 
 type ChangeRepository interface{

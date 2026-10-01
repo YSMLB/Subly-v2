@@ -80,7 +80,32 @@ func (gst *ScheduleService) GetScheduleToday(userID int, dayOfWeek int, parity d
 	return schedule, nil
 }
 
-func (uts *ScheduleService) UpdateTaskSchedule(subject string) error{
+func (uts *ScheduleService) UpdateTaskSchedule(schedule domain.ScheduleSlot) error{
+	if schedule.UserID <= 0{
+		return errors.New("Некорректный UserID")
+	}
+
+	if schedule.Subject == ""{
+		return errors.New("Некорректное название")
+	}
+
+	if schedule.StartTime == "" || schedule.EndTime == ""{
+		return errors.New("Занятие должно иметь временные рамки")
+	}
+
+	if schedule.DayOfWeek <= 0 || schedule.DayOfWeek > 6{
+		return errors.New("День должен быть корректный")
+	}
+	
+	if schedule.ID <= 0{
+		return errors.New("Такой пары не существует")
+	}
+
+	err := uts.Repo.UpdateTaskSchedule(schedule)
+
+	if err != nil{
+		return err
+	}
 	return nil
 }
 

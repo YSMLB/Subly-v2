@@ -66,7 +66,8 @@ func (m *MockScheduleRepo)GetScheduleToday(userID int, dayOfweek int) (*domain.S
 		Parity: domain.WeekParityBoth,
 	}, nil
 }
-func (m *MockScheduleRepo)UpdateTaskSchedule(subject string) error{
+func (m *MockScheduleRepo)UpdateTaskSchedule(schedule domain.ScheduleSlot) error{
+	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление занятий")
 	return nil
 }
 func main() {
@@ -243,5 +244,33 @@ func main() {
 	"\n время начала: ", testSchedule2.StartTime,
 	"\n время окончания: ", testSchedule2.EndTime,)
 	fmt.Println(testSchedule2)
+	}
+
+	fmt.Println("\n[Тест 3] Проверяем UpdateTaskSchedule...")
+	scheduleTest3 := domain.ScheduleSlot{
+		ID: 1,
+		UserID: 3,
+		Subject: "ОАиП",
+		Room: "407",
+		StartTime: "08:30",
+		EndTime: "10:00",
+		DayOfWeek: 6,
+		Type: domain.SlotTypeLecture,
+		Parity: domain.WeekParityBoth,
+	}
+
+	err = scheduleService.UpdateTaskSchedule(scheduleTest3)
+	if err != nil{
+		fmt.Println("ошибочка: ", err)
+	}else{
+		fmt.Println("Успех!",
+	"\n id пользователя: ", scheduleTest3.UserID,
+	"\n название предмета: ", scheduleTest3.Subject,
+	"\n кабинет: ", scheduleTest3.Room,
+	"\n день недели: ", scheduleTest3.DayOfWeek,
+	"\n тип: ", scheduleTest3.Type,
+	"\n четность: ", scheduleTest3.Parity,
+	"\n время начала: ", scheduleTest3.StartTime,
+	"\n время окончания: ", scheduleTest3.EndTime,)
 	}
 }
