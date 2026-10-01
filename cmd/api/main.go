@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"subly-v2/internal/domain"
 	"subly-v2/internal/service"
+	"time"
 )
 
 // MockTaskRepo — фейковое хранилище для проверки сервиса без реальной базы данных
@@ -11,6 +12,9 @@ type MockTaskRepo struct{}
 
 //MOckScheduleRepo - фейк хранилище для проверки сервиса без реальной бд
 type MockScheduleRepo struct{}
+
+//MockChangeRepo - фейк хранилизе ждя проверки сервиса без реальной бд
+type MockChangeRepo struct{}
 
 // Реализуем метод создания задачи (тот самый, который вызывает сервис)
 func (m *MockTaskRepo) CreateTask(task domain.Task) error {
@@ -70,6 +74,31 @@ func (m *MockScheduleRepo)UpdateTaskSchedule(schedule domain.ScheduleSlot) error
 	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление занятий")
 	return nil
 }
+
+
+//changes
+
+func (m *MockChangeRepo)SaveChanges(changes domain.ProposedChange) (*domain.ProposedChange, error){
+	fmt.Println("[MOCK DB] Репозиторий подтвердил сохранение изменений")
+	return &domain.ProposedChange{
+		ID: 1,
+		UserID: 1,
+		SlotID: 1,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusPending,
+		RawText: "МДК 05.01",
+		NewStartTime: "10:10",
+		NewEndTime: "11:40",
+		NewRoom: "201",
+		CreatedAdd: time.Now(),
+	}, nil
+}
+
+func (m *MockChangeRepo)GetPendingByUserID(){}
+
+func (m *MockChangeRepo)UpdateStatusChanges(){}
+
+
 func main() {
 	fmt.Println("--- Запуск проверки логики Subly ---")
 
@@ -79,6 +108,9 @@ func main() {
 	// 1. Создали заглушку репы
 	mockRepoSchedule := &MockScheduleRepo{}
 
+	// 1. Создали заглушку репы
+	mockRepoChange := &MockChangeRepo{}
+
 	// 2. Инициализируем наш сервис задач
 	taskService := &service.TaskService{
 		Repo: mockRepo,
@@ -86,6 +118,10 @@ func main() {
 
 	scheduleService := &service.ScheduleService{
 		Repo: mockRepoSchedule,
+	}
+
+	changeService := &service.ChangeService{
+		Repo: mockRepoChange,
 	}
 
 	// -------------------------------------------------------------
@@ -273,4 +309,41 @@ func main() {
 	"\n время начала: ", scheduleTest3.StartTime,
 	"\n время окончания: ", scheduleTest3.EndTime,)
 	}
+
+
+	fmt.Println("\n[Изменение]")//change
+	
+	fmt.Println("\n [Тест 1] Проверяем SaveChange...")//savechange
+	changeTest1 := domain.ProposedChange{
+				ID: 2,
+		UserID: 3,
+		SlotID: 4,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusPending,
+		RawText: "МДК 05.02",
+		NewStartTime: "12:10",
+		NewEndTime: "13:40",
+		NewRoom: "401",
+		CreatedAdd: time.Now(),
+	}
+
+	testChange1, err := changeService.SaveChanges(changeTest1)
+	if err != nil{
+		fmt.Println("error: ", err)
+	}else{
+		fmt.Println(
+			"\nID: ", changeTest1.ID,
+			"\nUserID: ", changeTest1.UserID,
+			"\nSlotID: ", changeTest1.SlotID,
+			"\nAction: ", changeTest1.Action,
+			"\nStatus: ", changeTest1.Status,
+			"\nRawText: ", changeTest1.RawText,
+			"\nNewStartTime: ", changeTest1.NewStartTime,
+			"\nNewEndTime: ", changeTest1.NewEndTime,
+			"\nNewRoom: ", changeTest1.NewRoom,
+			"\nCreatedAdd: ", changeTest1.CreatedAdd,
+		)
+		fmt.Println(testChange1)
+	}
+
 }
