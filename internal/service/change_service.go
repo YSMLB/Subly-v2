@@ -12,11 +12,8 @@ type ChangeService struct{
 
 func (sc *ChangeService)SaveChanges(changes domain.ProposedChange) (*domain.ProposedChange, error){
 	changes.Status = domain.ChangeStatusPending
-	if changes.ID <= 0{
+	if changes.ID != 0{
 		return nil, errors.New("Некорректный id")
-	}
-	if changes.SlotID<= 0{
-		return nil, errors.New("Некорректный SlotID")
 	}
 	if changes.UserID <= 0{
 		return nil, errors.New("Некорректный UserID")
@@ -32,15 +29,15 @@ func (sc *ChangeService)SaveChanges(changes domain.ProposedChange) (*domain.Prop
 	if changes.RawText == ""{
 		return nil, errors.New("Некорректно передано изменение")
 	}
-	if changes.NewEndTime == "" || changes.NewStartTime == "" || changes.NewRoom == ""{
+	if changes.NewEndTime == "" && changes.NewStartTime == "" && changes.NewRoom == ""{
 		return nil, errors.New("Нет определенного действия")
 	}
 
+	changes.CreatedAdd = time.Now()
 	changesSave, err := sc.Repo.SaveChanges(changes)
 	if err != nil{
 		return nil, err
 	}
-	changesSave.CreatedAdd = time.Now()
 
 	return changesSave, nil
 }
