@@ -36,10 +36,10 @@ func (s *TaskService) CreateTask(task domain.Task) (*domain.Task, error){
 
 func (us *TaskService) UpdateStatus(id int, userID int, newStatus domain.TaskStatus) (*domain.Task, error) {
 	if id <= 0 {
-		return nil, errors.New("Такого пользователя не существует!")
+		return nil, errors.New("Такой задачи не существует!")
 	}
 	if userID <= 0{
-		return nil, errors.New("Такой задачи не существует!")
+		return nil, errors.New("Такого пользователя не существует!")
 	}
 
 	task, err := us.Repo.GetTaskID(id)
@@ -65,7 +65,7 @@ func (us *TaskService) UpdateStatus(id int, userID int, newStatus domain.TaskSta
 }
 
 func (gtid *TaskService) GetTaskID(id int) (*domain.Task ,error){
-	if id == 0{
+	if id <= 0{
 		return nil, errors.New("Такого пользователя не существует!")
 	}
 	

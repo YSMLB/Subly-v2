@@ -121,7 +121,37 @@ func (m *MockChangeRepo)GetPendingByUserID(userID int) ([]domain.ProposedChange,
 	}, nil
 }
 
-func (m *MockChangeRepo)UpdateStatusChanges(){}
+func (m *MockChangeRepo) GetChangeByID(id int) (*domain.ProposedChange, error){
+	fmt.Println("[MOCK DB] Репозиторий подтвердил поиск изменений")
+	return &domain.ProposedChange{
+		ID: 3,
+		UserID: 4,
+		SlotID: 5,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusPending,
+		RawText: "Химия",
+		NewStartTime: "14:00",
+		NewEndTime: "15:30",
+		NewRoom: "37",
+		CreatedAdd: time.Now(),
+	},nil
+}
+
+func (m *MockChangeRepo)UpdateStatusChanges(slotID int, userID int, newStatus domain.ChangeStatus) (*domain.ProposedChange, error){
+	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление изменений")
+	return &domain.ProposedChange{
+			ID: 4,
+			UserID: 5,
+			SlotID: 6,
+			Action: domain.ChangeActionAddSlot,
+			Status: domain.ChangeStatusPending,
+			RawText: "Биология",
+			NewStartTime: "14:00",
+			NewEndTime: "15:30",
+			NewRoom: "25",
+			CreatedAdd: time.Now(),
+	}, nil
+}
 
 
 func main() {
@@ -403,4 +433,74 @@ func main() {
 		)
 		fmt.Println(testChange2)
 	}
+
+		fmt.Println("[Тест 3] Проверяем GetChangeByID...")
+
+		changeTest3 := domain.ProposedChange{
+			ID: 5,
+			UserID: 4,
+			SlotID: 2,
+			Action: domain.ChangeActionAddSlot,
+			Status: domain.ChangeStatusPending,
+			RawText: "geography",
+			NewStartTime: "15:40",
+			NewEndTime: "16:50",
+			NewRoom: "409",
+			CreatedAdd: time.Now(),
+		}
+		testChange3, err := changeService.GetChangeByID(changeTest3.ID)
+		if err != nil{
+			fmt.Println("error: ", err)
+		}else{
+			fmt.Println(
+			"\nID: ", changeTest3.ID,
+			"\nUserID: ", changeTest3.UserID,
+			"\nSlotID: ", changeTest3.SlotID,
+			"\nAction: ", changeTest3.Action,
+			"\nStatus: ", changeTest3.Status,
+			"\nRawText: ", changeTest3.RawText,
+			"\nNewStartTime: ", changeTest3.NewStartTime,
+			"\nNewEndTime: ", changeTest3.NewEndTime,
+			"\nNewRoom: ", changeTest3.NewRoom,
+			"\nCreatedAdd: ", changeTest3.CreatedAdd,
+		)
+		fmt.Println(testChange3)
+		}
+
+		fmt.Println("[Тест 3] Проверяем UpdateStatusChanges...")
+
+		changeTest4 := domain.ProposedChange{
+			ID: 4,
+			UserID: 4,
+			SlotID: 6,
+			Action: domain.ChangeActionAddSlot,
+			Status: domain.ChangeStatusPending,
+			RawText: "Высшая математика",
+			NewStartTime: "13:00",
+			NewEndTime: "13:30",
+			NewRoom: "33",
+			CreatedAdd: time.Now(),
+		}
+		newStatus := domain.ChangeStatusApproved
+
+		testChange4, err := changeService.UpdateStatusChanges(changeTest4.SlotID, changeTest4.UserID, newStatus)
+
+		if err != nil{
+			fmt.Println("error: ", err)
+		}else{
+			fmt.Println(
+			"\nID: ", changeTest4.ID,
+			"\nUserID: ", changeTest4.UserID,
+			"\nSlotID: ", changeTest4.SlotID,
+			"\nAction: ", changeTest4.Action,
+			"\nStatus: ", changeTest4.Status,
+			"\nRawText: ", changeTest4.RawText,
+			"\nNewStartTime: ", changeTest4.NewStartTime,
+			"\nNewEndTime: ", changeTest4.NewEndTime,
+			"\nNewRoom: ", changeTest4.NewRoom,
+			"\nCreatedAdd: ", changeTest4.CreatedAdd,
+		)
+		fmt.Println(testChange4)
+		}
+	fmt.Println("===Конец тестов===")
 }

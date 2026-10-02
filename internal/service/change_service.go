@@ -51,3 +51,47 @@ func (gpbuid *ChangeService) GetPendingByUserID(userID int) ([]domain.ProposedCh
 
 	return waitChange, nil
 }
+
+func (gcbid *ChangeService)GetChangeByID(id int) (*domain.ProposedChange, error){
+	if id <= 0{
+		return nil, errors.New("Некорректный id")
+	}
+
+	changes, err := gcbid.Repo.GetChangeByID(id)
+
+	if err != nil{
+		return nil, err
+	}
+	return changes, nil
+}
+
+func (usc *ChangeService) UpdateStatusChanges(slotID int, userID int, newStatus domain.ChangeStatus) (*domain.ProposedChange, error){
+	if userID <= 0 {
+		return nil, errors.New("Некорректный userID")
+	} else if slotID <= 0 {
+		return nil, errors.New("Некорректный slotID")
+	}
+
+	if newStatus == domain.ChangeStatusPending{
+		return nil, errors.New("Статус должен быть: Принято или Отклонено")
+	}
+
+	changes, err := usc.Repo.GetChangeByID(slotID)
+	if err != nil{
+		return nil, err
+	}
+
+	if changes.UserID != userID{
+		return nil, errors.New("Вы не можете отклонить чужое изменение")
+	}
+
+	if changes.Status != domain.ChangeStatusPending{
+		return nil, errors.New("Это изменение не активно")
+	}
+
+	changes.Status = newStatus
+
+	finallyChanges, err := usc.Repo.UpdateStatusChanges(slotID, userID, newStatus)
+
+	return finallyChanges, nil
+}
