@@ -94,7 +94,32 @@ func (m *MockChangeRepo)SaveChanges(changes domain.ProposedChange) (*domain.Prop
 	}, nil
 }
 
-func (m *MockChangeRepo)GetPendingByUserID(){}
+func (m *MockChangeRepo)GetPendingByUserID(userID int) ([]domain.ProposedChange, error){
+	fmt.Println("[MOCK DB] Репозиторий подтвердил просмотр изменений")
+	return []domain.ProposedChange{
+		{ID: 1,
+		UserID: 1,
+		SlotID: 1,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusPending,
+		RawText: "МДК 05.01",
+		NewStartTime: "10:10",
+		NewEndTime: "11:40",
+		NewRoom: "201",
+		CreatedAdd: time.Now(),
+	},
+	{	ID: 2,
+		UserID: 1,
+		SlotID: 2,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusPending,
+		RawText: "МДК 05.02",
+		NewStartTime: "11:10",
+		NewEndTime: "12:40",
+		NewRoom: "301",
+		CreatedAdd: time.Now(),},
+	}, nil
+}
 
 func (m *MockChangeRepo)UpdateStatusChanges(){}
 
@@ -346,4 +371,36 @@ func main() {
 		fmt.Println(testChange1)
 	}
 
+	fmt.Println("[Тест 2] Проверяем GetPendingByUserID...")
+	changeTest2 := domain.ProposedChange{
+		ID: 3,
+		UserID: 4,
+		SlotID: 5,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusPending,
+		RawText: "МДК 05.02",
+		NewStartTime: "12:10",
+		NewEndTime: "13:40",
+		NewRoom: "401",
+		CreatedAdd: time.Now(),
+	}
+
+	testChange2, err := changeService.GetPendingByUserID(changeTest2.UserID,)
+	if err != nil{
+		fmt.Println("error: ", err)
+	}else{
+		fmt.Println(
+			"\nID: ", changeTest2.ID,
+			"\nUserID: ", changeTest2.UserID,
+			"\nSlotID: ", changeTest2.SlotID,
+			"\nAction: ", changeTest2.Action,
+			"\nStatus: ", changeTest2.Status,
+			"\nRawText: ", changeTest2.RawText,
+			"\nNewStartTime: ", changeTest2.NewStartTime,
+			"\nNewEndTime: ", changeTest2.NewEndTime,
+			"\nNewRoom: ", changeTest2.NewRoom,
+			"\nCreatedAdd: ", changeTest2.CreatedAdd,
+		)
+		fmt.Println(testChange2)
+	}
 }

@@ -18,6 +18,6 @@ type ScheduleRepository interface {
 
 type ChangeRepository interface {
 	SaveChanges(changes ProposedChange) (*ProposedChange, error)
-	GetPendingByUserID()
+	GetPendingByUserID(userID int) ([]ProposedChange, error)
 	UpdateStatusChanges()
 }
