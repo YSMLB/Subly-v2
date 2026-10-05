@@ -8,7 +8,7 @@ import (
 	"subly-v2/internal/service"
 	"testing"
 
-//	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5"
 )
 
 type MockTaskRepo1 struct{}
@@ -80,4 +80,55 @@ func TestTaskHandler_Create(t *testing.T){
 		})
 	}
 
+}
+
+func TestTaskHandler_GetTaskID(t *testing.T){
+	
+	//Определейние структуры (шаг1)
+	type testCase struct{
+		name string
+		requestBody string
+		expectedCode int
+	}
+
+	//Срез с набором проводимых сценариев (шаг2)
+	tests := []testCase{
+		{//успешыенй сценгарий
+			name: "success: get task id",
+			requestBody: "/tasks/1",
+			expectedCode: http.StatusOK,
+		},
+		{//нет цифр, вместо них буквы
+			name: "fail: field have not int",
+			requestBody: "/tasks/sashaLox",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail: DB have not this user",
+			requestBody: "/tasks/999",
+			expectedCode: http.StatusNotFound,
+		},
+	}
+
+	//ВАЖНАЯ ХРЕНЬТ!!!!!!!!
+	mockRepo := &MockTaskRepo1{}
+	taskService := &service.TaskService{Repo: mockRepo}
+	taskHandler := &TaskHandler{ServiceTask: taskService}
+	//РЯЛ ВАЖДНАЯ!!!
+
+	//регаем движок
+	for _, tc := range tests{
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.requestBody, nil)
+			rr := httptest.NewRecorder()
+
+			test := chi.NewRouter()
+			test.Get("/tasks/{id}", taskHandler.GetTaskID)
+			test.ServeHTTP(rr, req)//вызов
+
+			if rr.Code != tc.expectedCode{
+				t.Errorf("ожидался статус-код %d, а получен %d", tc.expectedCode, rr.Code)
+			}
+		})
+	}
 }
