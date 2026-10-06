@@ -60,3 +60,27 @@ func (gtid *TaskHandler) GetTaskID(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(taskID)
 }
+
+
+func (gl *TaskHandler) GetList(w http.ResponseWriter, r *http.Request){
+	userid := r.URL.Query().Get("user_id")
+	if userid == ""{
+		http.Error(w, "notfound", http.StatusBadRequest)//400
+		return
+	}
+	
+	task, err := strconv.Atoi(userid)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)//400
+		return
+	}
+
+	finally, err := gl.ServiceTask.GetList(task)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusInternalServerError)//500
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(finally)
+}

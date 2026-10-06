@@ -17,7 +17,11 @@ func (m *MockTaskRepo1) CreateTask(domain.Task) error{
 	return nil
 }
 
-func (m *MockTaskRepo1) GetTaskID(int) (*domain.Task, error){
+func (m *MockTaskRepo1) GetTaskID(id int) (*domain.Task, error){
+	if id == 1{
+		return &domain.Task{}, nil
+	}
+
 	return nil, nil
 }
 
@@ -128,6 +132,55 @@ func TestTaskHandler_GetTaskID(t *testing.T){
 
 			if rr.Code != tc.expectedCode{
 				t.Errorf("ожидался статус-код %d, а получен %d", tc.expectedCode, rr.Code)
+			}
+		})
+	}
+}
+
+
+func TestTaskHandler_GetList(t *testing.T){
+	//структура
+	type testCase struct{
+		name string
+		requestBody string
+		expectedCode int
+	}
+
+	//регаем слайс
+	tests := []testCase{
+		{
+			name: "success: get tasks list",
+			requestBody: "/tasks?user_id=1",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name: "fail: 400",
+			requestBody: "/tasks?user_id=",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail: 500",
+			requestBody: "/tasks?user_id=-1",
+			expectedCode: http.StatusInternalServerError,
+		},
+	}
+
+	//регаем
+	mockRepo := &MockTaskRepo1{}
+	taskService := &service.TaskService{Repo: mockRepo}
+	taskHandler := &TaskHandler{ServiceTask: taskService}
+
+	for _, tc := range tests{
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.requestBody, nil)
+			rr := httptest.NewRecorder()
+
+			test := chi.NewRouter()
+			test.Get("/tasks", taskHandler.GetList)
+			test.ServeHTTP(rr, req)
+
+			if rr.Code != tc.expectedCode{
+				t.Errorf("должен был прийти статус-код %d, а пришел %d", tc.expectedCode, rr.Code)
 			}
 		})
 	}
