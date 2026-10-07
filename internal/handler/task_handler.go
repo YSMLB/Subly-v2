@@ -84,3 +84,36 @@ func (gl *TaskHandler) GetList(w http.ResponseWriter, r *http.Request){
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(finally)
 }
+
+func (ut *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request){
+	getURLParametres := chi.URLParam(r, "id")// url - /tasks/{id}/status
+	id, err:= strconv.Atoi(getURLParametres)//конвертим и получаем user id
+
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if id <= 0{
+		http.Error(w, "dont correct id", http.StatusBadRequest)
+		return
+	}
+
+	type ChangeStruct struct{
+		Userid int
+		Status domain.TaskStatus
+	}
+
+	var change ChangeStruct//получаем новый статус
+	err = json.NewDecoder(r.Body).Decode(&change)
+
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	finally, err := ut.ServiceTask.UpdateStatus(id, change.Userid, change.Status)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(finally)
+}

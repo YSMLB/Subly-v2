@@ -25,7 +25,10 @@ func (m *MockTaskRepo1) GetTaskID(id int) (*domain.Task, error){
 	return nil, nil
 }
 
-func (m *MockTaskRepo1) GetList(int) ([]domain.Task, error){
+func (m *MockTaskRepo1) GetList(id int) ([]domain.Task, error){
+	if id == 1{
+		return []domain.Task{}, nil
+	}
 	return nil, nil
 }
 
@@ -181,6 +184,59 @@ func TestTaskHandler_GetList(t *testing.T){
 
 			if rr.Code != tc.expectedCode{
 				t.Errorf("должен был прийти статус-код %d, а пришел %d", tc.expectedCode, rr.Code)
+			}
+		})
+	}
+}
+
+func TestUpdateStatus(t *testing.T){
+	type TestCase struct{
+		name string
+		requestBody string
+		url string
+		expectedCode int
+	}
+
+	tests := []TestCase{
+		{
+			name: "success: Upddate Status",
+			requestBody: `{"userID": 1, "newStatus": "completed"}`,
+			url: "/tasks/1/status",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name: "fail: broken JSON",
+			requestBody: `{"userID": -1, "newStatus": canceled}`,
+			url: "/tasks/2/status",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail: broken url",
+			requestBody: `{"userID": 3, "newStatus": "completed"}`,
+			url: "/tasks/abc/status",
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+
+	mockRepo := &MockTaskRepo1{}
+	taskService := &service.TaskService{Repo: mockRepo}
+	taskHandler := &TaskHandler{ServiceTask: taskService}
+
+
+	//движок
+
+	for _, tc := range tests{
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPatch, tc.url, bytes.NewBufferString(tc.requestBody))
+			rr := httptest.NewRecorder()
+
+			test := chi.NewRouter()
+			test.Patch("/tasks/{id}/status", taskHandler.UpdateStatus)
+			test.ServeHTTP(rr, req)
+
+			if rr.Code != tc.expectedCode{
+				t.Errorf("ожидался статус-код %d, а получили %d", tc.expectedCode, rr.Code)
 			}
 		})
 	}
