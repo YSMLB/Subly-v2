@@ -241,3 +241,24 @@ func TestUpdateStatus(t *testing.T){
 		})
 	}
 }
+
+func TestTaskHandler_DeleteTask(t *testing.T){
+
+	type TestCase struct{
+		name string
+		urlTaskID string
+		urlUserID string
+		expectedCode int
+	}
+
+	tests := []TestCase{
+		{
+			name: "success: Task Deleted",
+			urlTaskID: "/tasks/{id}",
+			urlUserID: "/tasks?user_id=1",
+			expectedCode: http.StatusOK,
+		},
+		{},
+		{},
+	}
+}

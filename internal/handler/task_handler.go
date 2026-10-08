@@ -113,7 +113,49 @@ func (ut *TaskHandler) UpdateStatus(w http.ResponseWriter, r *http.Request){
 	}
 
 	finally, err := ut.ServiceTask.UpdateStatus(id, change.Userid, change.Status)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(finally)
+}
+
+func  (dt *TaskHandler)DeleteTask(w http.ResponseWriter, r *http.Request){
+	// задача лежит /tasks/{id}
+	//идентификатор владельца соответственно в ?user_id=...
+
+	taskID := chi.URLParam(r, "id")
+	userID := r.URL.Query().Get("user_id")
+
+	if userID == ""{
+		http.Error(w, "not user_id", http.StatusBadRequest)
+		return
+	}
+
+	if taskID == ""{
+		http.Error(w, "not taskID", http.StatusBadRequest)
+		return
+	}
+
+	TaskId, err := strconv.Atoi(taskID)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	} 
+
+	UserId, err := strconv.Atoi(userID)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = dt.ServiceTask.DeleteTask(TaskId, UserId)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
