@@ -19,7 +19,7 @@ func (m *MockTaskRepo1) CreateTask(domain.Task) error{
 
 func (m *MockTaskRepo1) GetTaskID(id int) (*domain.Task, error){
 	if id == 1{
-		return &domain.Task{}, nil
+		return &domain.Task{ID: 1, UserID: 1, Title: "Тестовая задача"}, nil
 	}
 
 	return nil, nil
@@ -245,20 +245,45 @@ func TestUpdateStatus(t *testing.T){
 func TestTaskHandler_DeleteTask(t *testing.T){
 
 	type TestCase struct{
-		name string
-		urlTaskID string
-		urlUserID string
+		name         string
+		url          string
 		expectedCode int
 	}
 
 	tests := []TestCase{
 		{
-			name: "success: Task Deleted",
-			urlTaskID: "/tasks/{id}",
-			urlUserID: "/tasks?user_id=1",
+			name:         "success: Task Deleted",
+			url:          "/tasks/1?user_id=1",
 			expectedCode: http.StatusOK,
 		},
-		{},
-		{},
+		{
+			name:         "fail: invalid task ID",
+			url:          "/tasks/abc?user_id=1",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "fail: missing or invalid user_id",
+			url:          "/tasks/1?user_id=",
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+	mockRepo := &MockTaskRepo1{}
+	taskService := &service.TaskService{Repo: mockRepo}
+	taskHandler := &TaskHandler{ServiceTask: taskService}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodDelete, tc.url, nil)
+			rr := httptest.NewRecorder()
+
+			test := chi.NewRouter()
+			test.Delete("/tasks/{id}", taskHandler.DeleteTask)
+			test.ServeHTTP(rr, req)
+
+			if rr.Code != tc.expectedCode {
+				t.Errorf("ожидался статус-код %d, а получили %d", tc.expectedCode, rr.Code)
+			}
+		})
 	}
 }
