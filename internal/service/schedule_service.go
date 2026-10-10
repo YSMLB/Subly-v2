@@ -68,7 +68,7 @@ func (gst *ScheduleService) GetScheduleToday(userID int, dayOfWeek int, parity d
 		return nil, err
 	}
 
-	if schedule.Parity != domain.WeekParityBoth || schedule.Parity != parity {
+	if schedule.Parity != domain.WeekParityBoth && schedule.Parity != parity {
 		return nil, errors.New("На этой неделе нет таких пар")
 	}
 
