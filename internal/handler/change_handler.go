@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"subly-v2/internal/domain"
 	"subly-v2/internal/service"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type ChangeHandler struct{
@@ -43,6 +45,27 @@ func (gpduid *ChangeHandler) GetPendingByUserID(w http.ResponseWriter, r *http.R
 	} 
 
 	result, err := gpduid.ChangeService.GetPendingByUserID(intUserID)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
+
+func (gcbid *ChangeHandler)GetChangeByID(w http.ResponseWriter, r *http.Request){
+	/// changes/{id}
+
+	userid := chi.URLParam(r, "id")
+
+	intUserID, err := strconv.Atoi(userid)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := gcbid.ChangeService.GetChangeByID(intUserID)
 	if err != nil{
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

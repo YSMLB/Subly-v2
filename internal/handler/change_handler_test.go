@@ -7,6 +7,8 @@ import (
 	"subly-v2/internal/domain"
 	"subly-v2/internal/service"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type MockChangeRepo struct{}
@@ -88,6 +90,68 @@ func TestChangehandler_Save(t *testing.T){
 
 			if rr.Code != tc.expectedCode{
 				t.Errorf("Ожидался статус-код %d, получили %d", tc.expectedCode, rr.Code)
+			}
+		})
+	}
+}
+
+func TestChangeHandler_GetChangeByID(t *testing.T){
+
+	type TestCase struct{
+		name string
+		requestBody string
+		url string
+		expectedCode int
+	}
+
+	tests :=[]TestCase{
+		{
+			name: "success",
+			url: "/changes/1",
+			requestBody: `{"id": 1, "userID": 1, "slotID": 1,
+			"changeAction": "cancel", "changeStatus": "pending",
+			"rawText": "MDK 05.02", "newStartTime": "10:10",
+			"newEndTime": "11:40", "newRoom": "306"
+			}`,
+			expectedCode: http.StatusOK,
+		},
+		{
+			name: "fail: not natural",
+			requestBody: `{"id": 1, "userID": 1, "slotID": 1,
+			"changeAction": "cancel", "changeStatus": "pending",
+			"rawText": "MDK 05.02", "newStartTime": "10:10",
+			"newEndTime": "11:40", "newRoom": "306"
+			}`,
+			url: "/changes/asd",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail",
+			requestBody: `{"id": 1, "userID": 1, "slotID": 1,
+			"changeAction": "cancel", "changeStatus": "pending",
+			"rawText": "MDK 05.02", "newStartTime": "10:10",
+			"newEndTime": "11:40", "newRoom": "306"
+			}`,
+			url: "/changes/",
+			expectedCode: http.StatusNotFound,
+		},
+	}
+
+	mockRepo := &MockChangeRepo{}
+	changeService := &service.ChangeService{Repo: mockRepo}
+	changeHandler := &ChangeHandler{ChangeService: changeService}
+
+	for _, tc := range tests{
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.url, nil)
+			rr := httptest.NewRecorder()
+
+			test := chi.NewRouter()
+			test.Get("/changes/{id}", changeHandler.GetChangeByID)
+			test.ServeHTTP(rr, req)
+
+			if rr.Code != tc.expectedCode{
+				t.Errorf("ожидался статус-код %d, получили %d", tc.expectedCode, rr.Code)
 			}
 		})
 	}
