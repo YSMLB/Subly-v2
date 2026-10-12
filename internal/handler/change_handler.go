@@ -74,3 +74,38 @@ func (gcbid *ChangeHandler)GetChangeByID(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }
+
+
+func (usc *ChangeHandler)UpdateStatusChanges(w http.ResponseWriter, r *http.Request){
+	// changes/{id}/status
+
+	taskid := chi.URLParam(r, "id")
+	intTaskID, err := strconv.Atoi(taskid)
+	
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	type status struct{
+		UserID int
+		Pending domain.ChangeStatus
+	}
+
+	var statusChange status
+	err = json.NewDecoder(r.Body).Decode(&statusChange)
+
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := usc.ChangeService.UpdateStatusChanges(intTaskID, statusChange.UserID, statusChange.Pending)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(result)
+}
