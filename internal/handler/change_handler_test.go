@@ -273,7 +273,7 @@ func TestChangeHandler_GetPendingByID(t *testing.T){
 	//Важная херня!!
 
 	for _, tc := range tests{
-		t.Run(tc.name, func(t *testing.t){
+		t.Run(tc.name, func(t *testing.T){
 			req := httptest.NewRequest(http.MethodGet, tc.requestBody, nil)
 			rr := httptest.NewRecorder()
 
