@@ -239,3 +239,51 @@ func TestChangeHandler_UpdateStatusChange(t *testing.T){
 		})
 	}
 }
+
+func TestChangeHandler_GetPendingByID(t *testing.T){
+
+	type TestCase struct{
+		name string
+		requestBody string //change/pending?user_id=1
+		expectedCode int
+	}
+
+	tests := []TestCase{
+		{
+			name: "success",
+			requestBody: "/change/pending?user_id=1",
+			expectedCode: http.StatusOK,
+		},
+		{
+			name: "fail: broken JSON",
+			requestBody: "/change/pending?user_id=asd",
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail: user id <= 0",
+			requestBody: "/change/pending?user_id=0",
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+	//Важная херня!!
+	mockRepo := &MockChangeRepo{}
+	changeService := &service.ChangeService{Repo: mockRepo}
+	changeHandler := &ChangeHandler{ChangeService: changeService}
+	//Важная херня!!
+
+	for _, tc := range tests{
+		t.Run(tc.name, func(t *testing.T){
+			req := httptest.NewRequest(http.MethodGet, tc.requestBody, nil)
+			rr := httptest.NewRecorder()
+
+			test := chi.NewRouter()
+			test.Get("/change/pending", changeHandler.GetPendingByUserID)
+			test.ServeHTTP(rr, req)
+
+			if rr.Code != tc.expectedCode{
+				t.Errorf("ожидался статус-код %d, пришел %d", tc.expectedCode, rr.Code)
+			}
+		})
+	}
+}

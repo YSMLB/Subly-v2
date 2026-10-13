@@ -176,6 +176,13 @@ func main() {
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger, middleware.Recoverer)
+	router.Use(cors.New(cors.Config{		//Midlleware подключаем 
+		AllowOrigins:	[]string{"http://localhost:3000"},
+		AllowMethods:	[]string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:	[]string{"Authorization", "Origin", "Content-Type", "Accept"},
+		ExposeHeaders:	[]string{"Content-Lenght"},
+		AccessCredentials: true,
+	}))
 
 	//task
 	router.Post("/tasks", taskHandler.CreateTask)
