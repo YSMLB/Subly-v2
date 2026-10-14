@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 // MockTaskRepo — фейковое хранилище для проверки сервиса без реальной базы данных
@@ -176,6 +177,12 @@ func main() {
 
 	router := chi.NewRouter()
 	router.Use(middleware.Logger, middleware.Recoverer)
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{"http://localhost:3000"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Content-Type", "Authorization", "Accept", "X-CSRF-Token"},
+		AllowCredentials: true,
+	}))
 
 	//task
 	router.Post("/tasks", taskHandler.CreateTask)
