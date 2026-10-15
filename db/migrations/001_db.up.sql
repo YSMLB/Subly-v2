@@ -32,12 +32,18 @@ CREATE TABLE schedule_slots(
 );
 CREATE INDEX i_schedule_user_day ON schedule_slots(user_id, day_of_week);
 
-CREATE TABLE change(
+CREATE TABLE proposed_changes(
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
-    slot_id INTEGER NOT NULL,
+    slot_id INTEGER REFERENCES schedule_slots(id) ON DELETE CASCADE,
     action VARCHAR(20) NOT NULL DEFAULT 'add_slot',
-    CHECK(action IN('cancel', 'reshedule_time', 'change_room', 'add_slot')),
+    CHECK(action IN('cancel', 'reschedule_time', 'change_room', 'add_slot')),
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    CHECK(status IN('pending', 'approved', ))
+    CHECK(status IN('pending', 'approved', 'rejected')),
+    raw_text TEXT,
+    new_start_time VARCHAR(20) ,
+    new_end_time VARCHAR(20) ,
+    new_room TEXT,
+    created_add TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX i_change_user_day ON proposed_changes(user_id, status);
