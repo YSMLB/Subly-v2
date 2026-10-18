@@ -49,3 +49,39 @@ func (ct *TaskRepository) GetTaskID (id int) (*domain.Task, error){
 
 	return &t, nil
 }
+
+func (gl *TaskRepository) GetList (userID int) ([]domain.Task, error){
+	ctx := context.Background()
+	query := "SELECT id, user_id, title, description, status, priority, due_date, created_at, updated_at FROM tasks WHERE user_id = $1"
+
+
+	tSlice := make([]domain.Task, 0)
+
+	rows, err := gl.pool.Query(ctx, query, userID)
+	if err != nil{
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next(){
+		var t domain.Task
+		
+		err := rows.Scan(
+			&t.ID, &t.UserID, &t.Title, 
+			&t.Description, &t.Status, &t.Priority, 
+			&t.DueDate, &t.CreatedAt, &t.UpdatedAt,
+		)
+
+		if err != nil{
+			return nil, err
+		}
+
+		tSlice = append(tSlice, t)
+	}
+
+	if err = rows.Err(); err != nil{
+		return nil, err		
+	}
+	
+	return tSlice, nil
+}

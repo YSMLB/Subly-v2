@@ -103,3 +103,53 @@ func TestTaskRepository_GetTaskID(t *testing.T){
 		t.Fatalf("ошибка проверки наличия задачи в БД: %v", err )
 	}
 }
+
+func TestTaskRepository_GetList(t *testing.T){
+	pool := setupTestDB(t)
+	defer pool.Close()
+
+	repo := NewTaskRepository(pool)
+
+	testTask := domain.Task{
+		UserID: 1,
+		ID: 1,
+		Title: "Сдать отчет по БД",
+		Description: "Лаба номер 3",
+		Status: domain.TaskStatusPending,
+		Priority: domain.TaskPriorityHigh,
+		DueDate: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	testTask2 := domain.Task{
+		UserID: 1,
+		ID: 1,
+		Title: "Сдать отчет по БД",
+		Description: "Лаба номер 3",
+		Status: domain.TaskStatusPending,
+		Priority: domain.TaskPriorityHigh,
+		DueDate: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	err := repo.CreateTask(testTask)
+	if err != nil{
+		t.Fatalf("CreateTask завершился с ошибкой: %v", err)
+	}
+
+	err = repo.CreateTask(testTask2)
+	if err != nil{
+		t.Fatalf("CreateTask завершился с ошибкой: %v", err)
+	}
+
+	tasks, err := repo.GetList(testTask.UserID)
+	if err != nil{
+		t.Fatalf("GetList завершился с ошибкой: %v", err)
+	}	
+
+	if len(tasks) != 2{
+		t.Fatal("Не 2 задача")
+	}
+	
+}
