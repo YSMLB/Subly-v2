@@ -85,3 +85,17 @@ func (gl *TaskRepository) GetList (userID int) ([]domain.Task, error){
 	
 	return tSlice, nil
 }
+
+func (ut *TaskRepository) UpdateTask (task *domain.Task) error{
+	ctx := context.Background()
+	query := "UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, due_date = $5, updated_at = NOW() WHERE id = $6"
+
+	_, err := ut.pool.Exec(ctx, query, task.Title, task.Description, 
+		task. Status, task.Priority, 
+		task.DueDate, task.ID)
+	if err != nil{
+		return err
+	}
+
+	return nil
+}

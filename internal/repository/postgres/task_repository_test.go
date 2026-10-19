@@ -153,3 +153,62 @@ func TestTaskRepository_GetList(t *testing.T){
 	}
 	
 }
+
+func TestTaskRepository_UpdateTask(t *testing.T){
+	pool := setupTestDB(t)
+	defer pool.Close()
+
+	repo := NewTaskRepository(pool)
+	
+	testTask := domain.Task{
+		UserID: 1,
+		ID: 1,
+		Title: "Сдать отчет по БД",
+		Description: "Лаба номер 3",
+		Status: domain.TaskStatusPending,
+		Priority: domain.TaskPriorityHigh,
+		DueDate: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	testTask2 := domain.Task{
+		UserID: 1,
+		ID: 2,
+		Title: "Сдать отчет по БД 2",
+		Description: "Лаба номер 3 2",
+		Status: domain.TaskStatusPending,
+		Priority: domain.TaskPriorityHigh,
+		DueDate: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	testTaskUpdate := domain.Task{
+		UserID: 1,
+		ID: 1,
+		Title: "Мой день рождения",
+		Description: "сегодня(19 октября)",
+		Status: domain.TaskStatusInProgress,
+		Priority: domain.TaskPriorityLow,
+		DueDate: time.Now().Add(24 * time.Hour),
+		UpdatedAt: time.Now(),
+	}
+
+	err := repo.CreateTask(testTask)
+	if err != nil{
+		t.Fatalf("CreateTask1 вернул ошибку: %v", err)
+	}
+
+	err = repo.CreateTask(testTask2)
+	if err != nil{
+		t.Fatalf("CreateTask2 вернул ошибку: %v", err)
+	}
+
+	err = repo.UpdateTask(&testTaskUpdate)
+	if err != nil{
+		t.Fatalf("UpdateTask вернул ошибку: %v", err)
+	}
+
+
+}
