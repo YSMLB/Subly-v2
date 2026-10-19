@@ -209,6 +209,51 @@ func TestTaskRepository_UpdateTask(t *testing.T){
 	if err != nil{
 		t.Fatalf("UpdateTask вернул ошибку: %v", err)
 	}
+}
 
+func TestTaskRepository_DeleteTask(t *testing.T){
+	pool := setupTestDB(t)
+	defer pool.Close()
+	id := 2
 
+	repo := NewTaskRepository(pool)
+
+	testTask1 := domain.Task{
+		ID: 3,
+		UserID: 2,
+		Title: "delete task",
+		Description: "hb to me",
+		Status: domain.TaskStatusPending,
+		DueDate: time.Now().Add(24 * time.Hour),
+		Priority: domain.TaskPriorityHigh,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	testTask2 := domain.Task{
+		ID: 4,
+		UserID: 2,
+		Title: "delete task 2",
+		Description: "hb to me 2",
+		Status: domain.TaskStatusPending,
+		Priority: domain.TaskPriorityHigh,
+		DueDate: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	err := repo.CreateTask(testTask1)
+	if err != nil{
+		t.Fatalf("CreateTask1 вернул ошибку: %v", err)
+	}
+
+	err = repo.CreateTask(testTask2)
+	if err != nil{
+		t.Fatalf("CreateTask2 верунл ошибку: %v", err)
+	}
+
+	err = repo.DeleteTask(id)
+	if err != nil{
+		t.Fatalf("DeleteTask вернул ошибку: %v", err)
+	}
 }

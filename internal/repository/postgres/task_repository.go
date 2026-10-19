@@ -99,3 +99,16 @@ func (ut *TaskRepository) UpdateTask (task *domain.Task) error{
 
 	return nil
 }
+
+func (dt *TaskRepository) DeleteTask (id int) error{
+	ctx := context.Background()
+	query := "DELETE FROM tasks WHERE id = $1"
+
+	_, err := dt.pool.Exec(ctx, query, id)
+	
+	if err != nil{
+		return err
+	}
+
+	return nil
+}
