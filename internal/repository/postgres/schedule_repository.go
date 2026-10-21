@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"subly-v2/internal/domain"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -32,4 +34,28 @@ func (as *ScheduleRepository)AddSlot(schedule domain.ScheduleSlot) error{
 	}
 
 	return nil
+}
+
+
+func (gst *ScheduleRepository)GetScheduleToday(user_id int, dayOfWeek int) (*domain.ScheduleSlot, error){
+	ctx := context.Background()
+	query := "SELECT user_id, subject, teacher, room, day_of_week, start_time, end_time, type, parity, is_cancelled FROM schedule_slots WHERE user_id = $1 AND day_of_week = $2"
+
+	var t domain.ScheduleSlot
+
+	err := gst.pool.QueryRow(ctx, query, user_id, dayOfWeek).Scan(
+		&t.UserID, &t.Subject, &t.Teacher,
+		&t.Room, &t.DayOfWeek, &t.StartTime,
+		&t.EndTime, &t.Type, &t.Parity,
+		&t.IsCancelled,
+	)
+
+	if err != nil{
+		if errors.Is(err, pgx.ErrNoRows) == true{
+			return nil, nil
+		}
+		return nil, err
+	}
+	
+	return &t, nil
 }
