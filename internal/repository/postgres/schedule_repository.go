@@ -59,3 +59,22 @@ func (gst *ScheduleRepository)GetScheduleToday(user_id int, dayOfWeek int) (*dom
 	
 	return &t, nil
 }
+
+func (uts *ScheduleRepository) UpdateTaskSchedule(schedule domain.ScheduleSlot) error{
+	ctx := context.Background()
+	query := "UPDATE schedule_slots SET subject = $1, teacher = $2, room = $3, day_of_week = $4, start_time = $5, end_time = $6, type = $7, parity = $8, is_cancelled = $9 WHERE id = $10"
+
+	_, err := uts.pool.Exec(ctx, query,
+		schedule.Subject, schedule.Teacher,
+		schedule.Room, schedule.DayOfWeek,
+		schedule.StartTime, schedule.EndTime,
+		schedule.Type, schedule.Parity,
+		schedule.IsCancelled, schedule.ID,
+		)
+
+	if err != nil{
+		return err
+	}
+	
+	return nil
+}

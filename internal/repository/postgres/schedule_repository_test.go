@@ -99,3 +99,46 @@ func TestScheduleRepository_GetScheduleToday(t *testing.T){
 	}
 }
 
+
+func TestScheduleRepository_UpdateTaskSchedule(t *testing.T){
+	pool := setupTestDB(t)
+	defer pool.Close()
+
+	repo := NewScheduleRepository(pool)
+
+	TestScheduleSlot := domain.ScheduleSlot{
+		UserID: 1,
+		Subject: "MDK 05.02",
+		Teacher: "Ivanova V. I.",
+		Room: "21",
+		DayOfWeek: 2,
+		StartTime: "15:40",
+		EndTime: "17:10",
+		Type: domain.SlotTypePractice,
+		Parity: domain.WeekParityEven,
+		IsCancelled: false,
+	}
+
+	TestScheduleSlotUpdate := domain.ScheduleSlot{
+		UserID: 1,
+		Subject: "Geography",
+		Teacher: "Подшивалов",
+		Room: "402",
+		DayOfWeek: 5,
+		StartTime: "00:00",
+		EndTime: "17:00",
+		Type: domain.SlotTypePractice,
+		Parity: domain.WeekParityEven,
+		IsCancelled: false,
+	}
+
+	err := repo.AddSlot(TestScheduleSlot)
+	if err != nil{
+		t.Fatalf("AddSlot завершился с ошибкой: %v", err)
+	}
+
+	err = repo.UpdateTaskSchedule(TestScheduleSlotUpdate)
+	if err != nil{
+		t.Fatalf("UpdateTaskSchedule завершился с ошибкой: %v", err)
+	}
+}
