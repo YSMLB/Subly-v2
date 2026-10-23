@@ -35,3 +35,42 @@ func (c *ChangeRepository) SaveChanges(changes domain.ProposedChange) (*domain.P
 
 	return &changes, nil
 }
+
+func (c *ChangeRepository) GetPendingByUserID (user_id int) ([]domain.ProposedChange, error){
+	ctx := context.Background()
+	query := "SELECT id, user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add FROM proposed_changes WHERE user_id = $1 AND status = 'pending'"
+
+	cSlice := make([]domain.ProposedChange, 0)
+
+	row, err := c.pool.Query(ctx, query, user_id)
+	if err != nil{
+		return nil, err
+	}
+
+	defer row.Close()
+
+	for row.Next(){
+		var r domain.ProposedChange
+
+		err := row.Scan(
+			&r.ID,
+			&r.UserID, &r.SlotID,
+			&r.Action, &r.Status,
+			&r.RawText, &r.NewStartTime,
+			&r.NewEndTime, &r.NewRoom,
+			&r.CreatedAdd,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		cSlice = append(cSlice, r)
+	}
+
+	if err = row.Err(); err != nil{
+		return nil, err
+	}
+
+	return cSlice, nil
+}
