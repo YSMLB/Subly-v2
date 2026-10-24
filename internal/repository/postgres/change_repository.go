@@ -99,3 +99,24 @@ func (c *ChangeRepository) GetChangeByID(id int) (*domain.ProposedChange, error)
 	}
 	return &t, nil
 }
+
+func (c *ChangeRepository) UpdateStatusChanges(id int, user_id int, new_status domain.ChangeStatus) (*domain.ProposedChange, error){
+	ctx := context.Background()
+	query := "UPDATE proposed_changes SET status = $1 WHERE user_id = $2 AND id = $3 RETURNING id, user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add"
+
+	var t domain.ProposedChange
+
+	err := c.pool.QueryRow(ctx, query, new_status, user_id, id).Scan(
+		&t.ID, &t.UserID,
+		&t.SlotID, &t.Action,
+		&t.Status, &t.RawText,
+		&t.NewStartTime, &t.NewEndTime,
+		&t.NewRoom, &t.CreatedAdd,
+	)
+
+	if err != nil{
+		return nil, err
+	}
+
+	return &t, nil
+}
