@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"subly-v2/internal/domain"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -73,4 +75,27 @@ func (c *ChangeRepository) GetPendingByUserID (user_id int) ([]domain.ProposedCh
 	}
 
 	return cSlice, nil
+}
+
+func (c *ChangeRepository) GetChangeByID(id int) (*domain.ProposedChange, error){
+	ctx := context.Background()
+	query := "SELECT id, user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add FROM proposed_changes WHERE id = $1"
+
+	var t domain.ProposedChange
+
+	err := c.pool.QueryRow(ctx, query, id).Scan(
+		&t.ID, &t.UserID,
+		&t.SlotID, &t.SlotID,
+		&t.Status, &t.RawText,
+		&t.NewStartTime, &t.NewEndTime,
+		&t.NewRoom,  &t.CreatedAdd,
+	)
+	if err != nil{
+		if errors.Is(err, pgx.ErrNoRows) == true{
+			return nil, nil
+		}
+		
+		return nil, err
+	}
+	return &t, nil
 }

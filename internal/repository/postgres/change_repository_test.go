@@ -201,3 +201,4 @@ func TestChangeRepository_GetPendingByUserID(t *testing.T){
 		t.Fatalf("GetPendingByUserID для пользователя 2 вернул ошибку: %v", err)
 	}
 }
+
