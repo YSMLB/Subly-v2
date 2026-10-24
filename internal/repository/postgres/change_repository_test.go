@@ -202,3 +202,68 @@ func TestChangeRepository_GetPendingByUserID(t *testing.T){
 	}
 }
 
+func TestChangeRepository_GetChangeByID(t *testing.T){
+	ctx := context.Background()
+	pool := setupTestDBChanges(t)
+	pool1 := setupTestDBSchedule(t)
+	defer pool.Close()
+	defer pool1.Close()
+
+	repo := NewChangeRepository(pool)
+	repo1 := NewScheduleRepository(pool1)
+
+	testChange := domain.ProposedChange{
+		UserID: 2,
+		SlotID: 1,
+		Action: domain.ChangeActionAddSlot,
+		Status: domain.ChangeStatusApproved,
+		RawText: "test2 user2",
+		NewStartTime: "10:10",
+		NewEndTime: "11:40",
+		NewRoom: "205",
+		CreatedAdd: time.Now(),
+	}
+
+	testSchedule := domain.ScheduleSlot{
+		UserID: 1,
+		Subject: "MDK 05.02",
+		Teacher: "Ivanova V. I.",
+		Room: "21",
+		DayOfWeek: 2,
+		StartTime: "15:40",
+		EndTime: "17:10",
+		Type: domain.SlotTypePractice,
+		Parity: domain.WeekParityEven,
+		IsCancelled: false,
+	}
+
+	err := repo1.AddSlot(testSchedule)
+	if err != nil{
+		t.Fatalf("AddSlot вернул ошибку: %v", err)
+	}
+
+	_, err = repo.SaveChanges(testChange)
+	if err != nil{
+		t.Fatalf("SaveChange вернул ошибку: %v", err)
+	}
+
+	test, err := repo.GetChangeByID(1)
+	if err != nil{
+		t.Fatalf("GetChangeByID вернул ошибку: %v", err)
+	}
+
+	var g domain.ProposedChange
+	query := "SELECT id, user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add FROM proposed_changes WHERE id = $1;"
+
+	err = pool.QueryRow(ctx, query, test.ID).Scan(
+		&g.ID, &g.UserID,
+		&g.SlotID, &g.Action,
+		&g.Status, &g.RawText,
+		&g.NewStartTime, &g.NewEndTime,
+		&g.NewRoom,  &g.CreatedAdd,
+	)
+
+	if err != nil{
+		t.Fatalf("Ошибка проверки наличия задачи в БД: %v", err)
+	}
+}

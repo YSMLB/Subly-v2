@@ -79,13 +79,13 @@ func (c *ChangeRepository) GetPendingByUserID (user_id int) ([]domain.ProposedCh
 
 func (c *ChangeRepository) GetChangeByID(id int) (*domain.ProposedChange, error){
 	ctx := context.Background()
-	query := "SELECT id, user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add FROM proposed_changes WHERE id = $1"
+	query := "SELECT id, user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add FROM proposed_changes WHERE id = $1;"
 
 	var t domain.ProposedChange
 
 	err := c.pool.QueryRow(ctx, query, id).Scan(
 		&t.ID, &t.UserID,
-		&t.SlotID, &t.SlotID,
+		&t.SlotID, &t.Action,
 		&t.Status, &t.RawText,
 		&t.NewStartTime, &t.NewEndTime,
 		&t.NewRoom,  &t.CreatedAdd,
