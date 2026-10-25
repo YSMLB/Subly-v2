@@ -1,175 +1,45 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net/http"
-	"subly-v2/internal/domain"
+
 	"subly-v2/internal/handler"
+	"subly-v2/internal/repository/postgres"
 	"subly-v2/internal/service"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// MockTaskRepo — фейковое хранилище для проверки сервиса без реальной базы данных
-type MockTaskRepo struct{}
+const poolStr = "postgres://postgres:postgres@localhost:5432/subly_db?sslmode=disable"
 
-//MOckScheduleRepo - фейк хранилище для проверки сервиса без реальной бд
-type MockScheduleRepo struct{}
-
-//MockChangeRepo - фейк хранилизе ждя проверки сервиса без реальной бд
-type MockChangeRepo struct{}
-
-// Реализуем метод создания задачи (тот самый, который вызывает сервис)
-func (m *MockTaskRepo) CreateTask(task domain.Task) error {
-	fmt.Println("[MOCK DB] Задача успешно записана в базу:", task.Title)
-	return nil
-}
-
-// Заглушки для остальных методов интерфейса TaskRepository
-func (m *MockTaskRepo) GetTaskID(id int) (*domain.Task, error) {
-	fmt.Println("[MOCK DB] Репозиторий подтвердил поиск задачи")
-	return &domain.Task{
-		ID: id,
-		UserID: 3,
-		Title: "title",
-	}, nil
-}
-func (m *MockTaskRepo) GetList(userID int) ([]domain.Task, error)    {
-	fmt.Println("[MOCK DB] Репозиторий подвердил поиск задач")
-	return []domain.Task{
-		{ID: userID,
-		UserID: 6,
-		Title: "саня ананьев чмо",
-		Description: "углерод",},
-		{ID: userID,
-		UserID: 7,
-		Title: "максименков тоже",
-		Description: "азот",},
-	}, nil
-}
-func (m *MockTaskRepo) UpdateTask(task *domain.Task) error {
-	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление задачи")
-	return nil
-}
-func (m *MockTaskRepo) DeleteTask(taskID int) error {
-	fmt.Println("[MOCK DB] Репозиторий подтвердил удаление задачи")
-	return nil
-}
-
-func (m *MockScheduleRepo) AddSlot(schedule domain.ScheduleSlot) error{
-	fmt.Println("[MOCK DB] Репозиторий подтвердил добавления занятий")
-	return nil
-}
-func (m *MockScheduleRepo)GetScheduleToday(userID int, dayOfweek int) (*domain.ScheduleSlot , error){
-	fmt.Println("[MOCK DB] Репозиторий подтверди поиск и выдачу занятий")
-	return &domain.ScheduleSlot{
-		UserID: 3,
-		Subject: "МДК 05.02",
-		Room: "401",
-		StartTime: "08:30",
-		EndTime: "10:00",
-		DayOfWeek: 6,
-		Type: domain.SlotTypeLecture,
-		Parity: domain.WeekParityBoth,
-	}, nil
-}
-func (m *MockScheduleRepo)UpdateTaskSchedule(schedule domain.ScheduleSlot) error{
-	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление занятий")
-	return nil
-}
-
-
-//changes
-
-func (m *MockChangeRepo)SaveChanges(changes domain.ProposedChange) (*domain.ProposedChange, error){
-	fmt.Println("[MOCK DB] Репозиторий подтвердил сохранение изменений")
-	return &domain.ProposedChange{
-		ID: 1,
-		UserID: 1,
-		SlotID: 1,
-		Action: domain.ChangeActionAddSlot,
-		Status: domain.ChangeStatusPending,
-		RawText: "МДК 05.01",
-		NewStartTime: "10:10",
-		NewEndTime: "11:40",
-		NewRoom: "201",
-		CreatedAdd: time.Now(),
-	}, nil
-}
-
-func (m *MockChangeRepo)GetPendingByUserID(userID int) ([]domain.ProposedChange, error){
-	fmt.Println("[MOCK DB] Репозиторий подтвердил просмотр изменений")
-	return []domain.ProposedChange{
-		{ID: 1,
-		UserID: 1,
-		SlotID: 1,
-		Action: domain.ChangeActionAddSlot,
-		Status: domain.ChangeStatusPending,
-		RawText: "МДК 05.01",
-		NewStartTime: "10:10",
-		NewEndTime: "11:40",
-		NewRoom: "201",
-		CreatedAdd: time.Now(),
-	},
-	{	ID: 2,
-		UserID: 1,
-		SlotID: 2,
-		Action: domain.ChangeActionAddSlot,
-		Status: domain.ChangeStatusPending,
-		RawText: "МДК 05.02",
-		NewStartTime: "11:10",
-		NewEndTime: "12:40",
-		NewRoom: "301",
-		CreatedAdd: time.Now(),},
-	}, nil
-}
-
-func (m *MockChangeRepo) GetChangeByID(id int) (*domain.ProposedChange, error){
-	fmt.Println("[MOCK DB] Репозиторий подтвердил поиск изменений")
-	return &domain.ProposedChange{
-		ID: 3,
-		UserID: 4,
-		SlotID: 5,
-		Action: domain.ChangeActionAddSlot,
-		Status: domain.ChangeStatusPending,
-		RawText: "Химия",
-		NewStartTime: "14:00",
-		NewEndTime: "15:30",
-		NewRoom: "37",
-		CreatedAdd: time.Now(),
-	},nil
-}
-
-func (m *MockChangeRepo)UpdateStatusChanges(slotID int, userID int, newStatus domain.ChangeStatus) (*domain.ProposedChange, error){
-	fmt.Println("[MOCK DB] Репозиторий подтвердил обновление изменений")
-	return &domain.ProposedChange{
-			ID: 4,
-			UserID: 5,
-			SlotID: 6,
-			Action: domain.ChangeActionAddSlot,
-			Status: domain.ChangeStatusPending,
-			RawText: "Биология",
-			NewStartTime: "14:00",
-			NewEndTime: "15:30",
-			NewRoom: "25",
-			CreatedAdd: time.Now(),
-	}, nil
-}
 
 
 func main() {
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, poolStr)
+	if err != nil{
+		log.Fatalf("Ошибка создания пул соединений: %v", err)
+	}
+	defer pool.Close()
 
-	mockChangeRepo := &MockChangeRepo{}
-	mockTaskRepo := &MockTaskRepo{}
-	mockScheduleRepo := &MockScheduleRepo{}
+	//пингация БД(Fail Fast)
+	if err := pool.Ping(ctx); err != nil{
+		log.Fatalf("БД недоступна: %v", err)
+	}
+	log.Println("Успешное подключение к PostrgreSQL!")
 
-	changeService := &service.ChangeService{Repo: mockChangeRepo}
-	taskService := &service.TaskService{Repo: mockTaskRepo}
-	scheduleService := &service.ScheduleService{Repo: mockScheduleRepo}
+	taskRepo := postgres.NewTaskRepository(pool)
+	scheduleRepo := postgres.NewScheduleRepository(pool)
+	changeRepo := postgres.NewChangeRepository(pool)
+
+	changeService := &service.ChangeService{Repo: changeRepo}
+	taskService := &service.TaskService{Repo: taskRepo}
+	scheduleService := &service.ScheduleService{Repo: scheduleRepo}
 
 	changeHandler := &handler.ChangeHandler{ChangeService: changeService}
 	taskHandler := &handler.TaskHandler{ServiceTask: taskService}
@@ -183,6 +53,18 @@ func main() {
 		AllowedHeaders: []string{"Content-Type", "Authorization", "Accept", "X-CSRF-Token"},
 		AllowCredentials: true,
 	}))
+
+	//проверка пульса
+	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		//првоерка жива ли БД прям щас
+		if err := pool.Ping(r.Context()); err != nil{
+			http.Error(w, "БД недоступна", http.StatusServiceUnavailable)
+			return
+		} 
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 
 	//task
 	router.Post("/tasks", taskHandler.CreateTask)
