@@ -2,6 +2,7 @@ package ingestor
 
 import (
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 	"subly-v2/internal/domain"
@@ -13,13 +14,14 @@ func ParseSchedule(filePath string) ([]domain.ScheduleSlot, error){
 	var t []domain.ScheduleSlot
 	groupMap := map[string]int{}
 	
-	f, err := excelize.OpenFile("26.10.202631.10.2026")
+	
+	f, err := excelize.OpenFile(filePath)
 	if err != nil{
 		return nil, err
 	}
 	defer f.Close()
 
-	rows, _ := f.GetRows("Sheet1")
+	rows, _ := f.GetRows("Лист_1")
 
 	for i, row := range rows{//создаем значения в вспомогательную мапу 
 		if i == 0{
@@ -30,16 +32,77 @@ func ParseSchedule(filePath string) ([]domain.ScheduleSlot, error){
 		}
 	}
 
+	//дни недели где есть
+	currentDay := 0
+	monday := "Понедельник"
+	tuesday := "Вторник"
+	wednesday := "Среда"
+	thursday := "Четверг"
+	friday := "Пятница"
+	saturday := "Суббота"
+
 
 	//основной цикдл
-	for j := 1; j < len(rows)-1; j++{
+	for j := 1; j < len(rows); j++{
 		row := rows[j]
 
+		switch row[0]{
+			case monday:
+				currentDay = 1
+			case tuesday:
+				currentDay = 2
+			case wednesday:
+				currentDay =3 
+			case thursday:
+				currentDay = 4
+			case friday:
+				currentDay = 5
+			case saturday:
+				currentDay = 6
+
+		}
+
 		myColumn := groupMap["2вб1"]
+		if len(row)<= myColumn{
+			continue
+		}
+		
 		data := row[myColumn]
+		data = strings.TrimSpace(data)//обрезаем лишние пробелы
+
+		if data == ""{
+			continue
+		}
+
+		teach, subj, room, schNumb, err := parseCell(data)//используем смачную елду
+		if err != nil{
+			log.Printf("Ошибка: %v", err)
+			continue
+		}
+
+		start, end, err := startAndEndTimeSchedule(schNumb, currentDay)
+		if err != nil{
+			log.Printf("Ошибка: %v", err)
+			continue
+		}
+
+		readyObjSched := domain.ScheduleSlot{
+			UserID: 0,
+			Subject: subj,
+			Teacher: teach,
+			Room: room,
+			DayOfWeek: currentDay,
+			StartTime: start,
+			EndTime: end,
+			Type: domain.SlotTypeLecture,
+			Parity: domain.WeekParityEven,
+			IsCancelled: false,
+		}
+
+		t = append(t, readyObjSched)
 	}
 	
-	return nil, nil
+	return t, nil
 }
 
 func parseCell(cell string) (string, string, string, int, error){
@@ -79,3 +142,56 @@ func parseCell(cell string) (string, string, string, int, error){
 	return teacher, subject, room, scheduleNumb, nil
 }
 
+func startAndEndTimeSchedule(scheduleNumb int, currentDay int) (string, string, error){
+	if scheduleNumb <= 0  || scheduleNumb > 6{
+		return "", "", errors.New("Такой пары не существует")
+	}
+	startTime := ""
+	endTime := ""
+
+	if currentDay != 1{
+		switch scheduleNumb{
+			case 1:
+				startTime = "08:30"
+				endTime = "10:00"
+			case 2:
+				startTime = "10:10"
+				endTime = "11:40"
+			case 3:
+				startTime = "12:00"
+				endTime = "13:30"
+			case 4:
+				startTime = "14:00"
+				endTime = "15:30"
+			case 5:
+				startTime = "15:40"
+				endTime = "17:10"
+			case 6:
+				startTime = "17:15"
+				endTime = "18:45"
+		}
+		return startTime, endTime, nil
+	}
+
+	switch scheduleNumb{
+		case 1:
+			startTime = "08:30"
+			endTime = "10:00"
+		case 2:
+			startTime = "10:10"
+			endTime = "11:40"
+		case 3:
+			startTime = "12:00"
+			endTime = "13:30"
+		case 4:
+			startTime = "РОВ 13:45 - 14:15; 14:25"
+			endTime = "15:55"
+		case 5:
+			startTime = "16:05"
+			endTime = "17:35"
+		case 6:
+			startTime = "17:40"
+			endTime = "19:10"
+	}
+	return startTime, endTime, nil
+}
