@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"subly-v2/internal/domain"
@@ -102,4 +103,32 @@ func (uts *ScheduleHandler) UpdateTaskSchedule(w http.ResponseWriter, r *http.Re
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(schedule)
+}
+
+
+func (h *ScheduleHandler) ImportSchedule(w http.ResponseWriter, r *http.Request){
+	type helperStruct struct{
+		UserID int
+		FilePath string
+	}
+	var data helperStruct
+
+	err := json.NewDecoder(r.Body).Decode(&data)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if data.UserID <= 0{
+		http.Error(w, "поле userID <=0", http.StatusBadRequest)
+		return
+	}
+
+	err = h.ServiceSchedule.ImportScheduleFromFile(data.UserID, data.FilePath)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	w.WriteHeader(http.StatusOK)
+	log.Print("УСПЕХ!")
 }

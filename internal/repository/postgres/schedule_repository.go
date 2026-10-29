@@ -2,10 +2,10 @@ package postgres
 
 import (
 	"context"
-	"errors"
+
 	"subly-v2/internal/domain"
 
-	"github.com/jackc/pgx/v5"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,27 +37,36 @@ func (as *ScheduleRepository)AddSlot(schedule domain.ScheduleSlot) error{
 }
 
 
-func (gst *ScheduleRepository)GetScheduleToday(user_id int, dayOfWeek int) (*domain.ScheduleSlot, error){
+func (gst *ScheduleRepository)GetScheduleToday(user_id int, dayOfWeek int) ([]domain.ScheduleSlot, error){
 	ctx := context.Background()
 	query := "SELECT user_id, subject, teacher, room, day_of_week, start_time, end_time, type, parity, is_cancelled FROM schedule_slots WHERE user_id = $1 AND day_of_week = $2"
 
-	var t domain.ScheduleSlot
+	tSlice := make([]domain.ScheduleSlot, 0)
 
-	err := gst.pool.QueryRow(ctx, query, user_id, dayOfWeek).Scan(
-		&t.UserID, &t.Subject, &t.Teacher,
-		&t.Room, &t.DayOfWeek, &t.StartTime,
-		&t.EndTime, &t.Type, &t.Parity,
-		&t.IsCancelled,
-	)
-
+	rows, err := gst.pool.Query(ctx, query, user_id, dayOfWeek)
 	if err != nil{
-		if errors.Is(err, pgx.ErrNoRows) == true{
-			return nil, nil
-		}
 		return nil, err
 	}
+
+	for rows.Next(){
+		var t domain.ScheduleSlot
+
+		err := rows.Scan(
+			&t.UserID, &t.Subject,
+			&t.Teacher, &t.Room,
+			&t.DayOfWeek, &t.StartTime,
+			&t.EndTime, &t.Type,
+			 &t.Parity, &t.IsCancelled,
+		)
+
+		if err != nil{
+			return nil, err
+		}
+
+		tSlice = append(tSlice, t)
+	}
 	
-	return &t, nil
+	return tSlice, nil
 }
 
 func (uts *ScheduleRepository) UpdateTaskSchedule(schedule domain.ScheduleSlot) error{

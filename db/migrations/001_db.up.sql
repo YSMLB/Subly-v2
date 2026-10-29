@@ -22,7 +22,7 @@ CREATE TABLE schedule_slots(
     room VARCHAR(20) NOT NULL,
     day_of_week INTEGER NOT NULL,
     CHECK(day_of_week BETWEEN 1 AND 7),
-    start_time VARCHAR(20) NOT NULL,
+    start_time VARCHAR(50) NOT NULL,
     end_time VARCHAR(20) NOT NULL,
     type VARCHAR(20) NOT NULL DEFAULT 'lecture',
     CHECK(type IN('lecture', 'practice', 'lab')),

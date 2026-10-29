@@ -77,6 +77,7 @@ func main() {
 	router.Post("/schedule", scheduleHandler.AddSlot)
 	router.Get("/schedule/today", scheduleHandler.GetScheduleToday)
 	router.Put("/schedule/{id}", scheduleHandler.UpdateTaskSchedule)
+	router.Post("/schedule/import", scheduleHandler.ImportSchedule)
 
 	//change
 	router.Post("/changes", changeHandler.SaveChanges)
