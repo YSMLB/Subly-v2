@@ -8,6 +8,7 @@ import (
 
 type ChangeService struct {
 	Repo domain.ChangeRepository
+	RepoSchedule domain.ScheduleRepository
 }
 
 func (sc *ChangeService) SaveChanges(changes domain.ProposedChange) (*domain.ProposedChange, error) {
@@ -88,6 +89,36 @@ func (usc *ChangeService) UpdateStatusChanges(slotID int, userID int, newStatus 
 	if changes.Status != domain.ChangeStatusPending{
 		return nil, errors.New("Это изменение не активно")
 	}
+
+	if newStatus == domain.ChangeStatusApproved{
+		slot, err := usc.RepoSchedule.GetSlotByID(changes.SlotID)
+		if err != nil{
+			return nil, err
+		}
+
+		if slot == nil{
+			return nil, errors.New("Слот не найден")
+		}
+
+		switch changes.Action{
+		case domain.ChangeActionCancel:
+			slot.IsCancelled = true
+
+		case domain.ChangeActionChangeRoom:
+			slot.Room = changes.NewRoom
+
+		case domain.ChangeActionRescheduleTime:
+			slot.StartTime = changes.NewStartTime
+			slot.EndTime = changes.NewEndTime
+		}
+
+		err = usc.RepoSchedule.UpdateTaskSchedule(*slot)
+		if err != nil{
+			return nil, errors.New("UpdateTaskSchedule вернул ошибку")
+		}
+
+	}
+
 
 	changes.Status = newStatus
 

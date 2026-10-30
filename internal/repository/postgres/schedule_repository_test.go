@@ -145,3 +145,37 @@ func TestScheduleRepository_UpdateTaskSchedule(t *testing.T) {
 		t.Fatalf("UpdateTaskSchedule завершился с ошибкой: %v", err)
 	}
 }
+
+func TestScheduleRepository_GetSlotByID(t *testing.T){
+	pool := setupTestDB(t)
+	defer pool.Close()
+
+	repo := NewScheduleRepository(pool)
+
+	TestScheduleSlot := domain.ScheduleSlot{
+		ID: 1,
+		UserID:      1,
+		Subject:     "MDK 05.02",
+		Teacher:     "Ivanova V. I.",
+		Room:        "21",
+		DayOfWeek:   2,
+		StartTime:   "15:40",
+		EndTime:     "17:10",
+		Type:        domain.SlotTypePractice,
+		Parity:      domain.WeekParityEven,
+		IsCancelled: false,
+	}
+
+	err := repo.AddSlot(TestScheduleSlot)
+	if err != nil{
+		t.Fatalf("AddSlot вернул ошибку: %v", err)
+	}
+
+	test, err := repo.GetSlotByID(1)
+	if err != nil{
+		t.Fatalf("GetSlotByID вернул ошибку: %v", err)
+	}
+	if test == nil{
+		t.Fatal("GetSlotID вернул пустую структуру")
+	}
+}

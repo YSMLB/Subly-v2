@@ -2,10 +2,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"subly-v2/internal/domain"
 
-
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -86,4 +87,30 @@ func (uts *ScheduleRepository) UpdateTaskSchedule(schedule domain.ScheduleSlot) 
 	}
 	
 	return nil
+}
+
+func (s *ScheduleRepository)GetSlotByID(slotID int) (*domain.ScheduleSlot, error){
+	ctx := context.Background()
+	query := "SELECT id, user_id, subject, teacher, room, day_of_week, start_time, end_time, type, parity, is_cancelled FROM schedule_slots WHERE id = $1"
+
+	var t domain.ScheduleSlot
+
+	err := s.pool.QueryRow(ctx, query, slotID).Scan(
+		&t.ID, &t.UserID,
+		&t.Subject, &t.Teacher,
+		&t.Room, &t.DayOfWeek,
+		&t.StartTime, &t.EndTime,
+		&t.Type, &t.Parity,
+		&t.IsCancelled,
+	)
+
+	if err != nil{
+		if errors.Is(err, pgx.ErrNoRows) == true{
+			return nil, nil
+		}
+		
+		return nil, err
+	}
+
+	return &t, nil
 }

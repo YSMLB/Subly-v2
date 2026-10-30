@@ -37,7 +37,7 @@ func main() {
 	scheduleRepo := postgres.NewScheduleRepository(pool)
 	changeRepo := postgres.NewChangeRepository(pool)
 
-	changeService := &service.ChangeService{Repo: changeRepo}
+	changeService := &service.ChangeService{Repo: changeRepo, RepoSchedule: scheduleRepo}
 	taskService := &service.TaskService{Repo: taskRepo}
 	scheduleService := &service.ScheduleService{Repo: scheduleRepo}
 

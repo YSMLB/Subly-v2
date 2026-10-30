@@ -39,6 +39,9 @@ func (m *MockScheduleRepo) UpdateTaskSchedule(schedule domain.ScheduleSlot) erro
 func (m *MockScheduleRepo) ImportSchedule(userID int, filePath string) error {
 	return nil
 }
+func (m *MockScheduleRepo) GetSlotByID(slotID int) (*domain.ScheduleSlot, error){
+	return nil, nil
+}
 
 func TestSchedule_AddSlot(t *testing.T) {
 
