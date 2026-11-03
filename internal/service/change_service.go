@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"subly-v2/internal/domain"
+	"subly-v2/internal/ingestor"
 	"time"
 )
 
@@ -125,4 +126,71 @@ func (usc *ChangeService) UpdateStatusChanges(slotID int, userID int, newStatus 
 	finallyChanges, err := usc.Repo.UpdateStatusChanges(slotID, userID, newStatus)
 
 	return finallyChanges, nil
+}
+
+
+func (s *ChangeService)ImportReplacementsFromText(userID int, group string, rawText string) ([]domain.ProposedChange, error){
+	if userID <= 0{
+		return nil, errors.New("userID должен иметь значение отличное от нуля")
+	}
+
+	if group == ""{
+		return nil, errors.New("поле группы не должно юыть пустым")
+	}
+
+	if rawText == ""{
+		return nil, errors.New("поле с изменением не должно быть пустым")
+	}
+
+	sliceChangeParse , err := ingestor.MaxChangeParser(rawText, group)
+	if err != nil{
+		return nil, errors.New("MaxChangeParser вернул ошибку")
+	}
+
+	scheduleSlotToday, err := s.RepoSchedule.GetScheduleToday(userID, sliceChangeParse.DayOfWeek)
+	if err != nil{
+		return nil, errors.New("GetScheduleToday вернул ошибку")
+	}
+
+	result := make([]domain.ProposedChange, 0)
+
+	for i := 0; i < len(sliceChangeParse.ListSlots); i++{
+		res := &domain.ScheduleSlot{}
+		change := &domain.ProposedChange{}
+		n := &sliceChangeParse.ListSlots[i]
+
+		for _ ,v := range scheduleSlotToday{
+			if v.Subject == n.Subject{
+				res.ID = v.ID
+				break
+			}
+		}
+
+		if n.IsCancelled == true{
+			change.Action = domain.ChangeActionCancel
+		}else if res.ID > 0{
+			change.Action = domain.ChangeActionChangeRoom
+		} else{
+			change.Action = domain.ChangeActionAddSlot
+		}
+
+		change = &domain.ProposedChange{
+			UserID: userID,
+			SlotID: res.ID,
+			Action: change.Action,
+			Status: domain.ChangeStatusPending,
+			NewRoom: n.Room,
+			RawText: n.Subject,
+		}
+
+		preres, err := s.Repo.SaveChanges(*change)
+		if err != nil{
+			return nil, err
+		}
+
+		result = append(result, *preres)
+	}
+
+
+	return result, nil
 }
