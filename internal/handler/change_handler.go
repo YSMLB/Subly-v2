@@ -109,3 +109,29 @@ func (usc *ChangeHandler)UpdateStatusChanges(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }
+
+func (c *ChangeHandler) ImportReplacements(w http.ResponseWriter, r *http.Request){
+	//POST-запрос
+	type structHelper struct{
+		UserID int
+		Group string
+		RawText string
+	}
+
+	var t structHelper
+
+	err := json.NewDecoder(r.Body).Decode(&t)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	unparseBody, err := c.ChangeService.ImportReplacementsFromText(t.UserID, t.Group, t.RawText)
+	if err != nil{
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(unparseBody)
+}

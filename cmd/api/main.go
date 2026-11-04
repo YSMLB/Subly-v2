@@ -84,6 +84,7 @@ func main() {
 	router.Get("/changes/pending", changeHandler.GetPendingByUserID)
 	router.Get("/changes/{id}", changeHandler.GetChangeByID)
 	router.Patch("/changes/{id}/status", changeHandler.UpdateStatusChanges)
+	router.Post("/changes/import-text", changeHandler.ImportReplacements)
 
 	log.Println("Subly-v2 сервер запущен на порту:8080...")
 	http.ListenAndServe(":8080", router)

@@ -239,3 +239,69 @@ func TestChangeHandler_UpdateStatusChange(t *testing.T){
 		})
 	}
 }
+
+
+func TestChangeHandler_ImportReplacementsFromText(t *testing.T){
+	type testStructCase struct{
+		name string
+		requestBody string
+		expectedCode int
+	}
+
+	tests := []testStructCase{
+		{
+			name: "success",
+			requestBody: `{"UserID": 1, "Group": "2вб1", "RawText": "Замены 05.11.2026 (Четверг)\nГруппа: 2вб1\n\n• 4. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404\n• 5. История  Филатов Д.А. Производственный корпус-Аудитория 119 (О)\n• 6. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404"}`,
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name: "fail: invalid JSON(broken text)",
+			requestBody: `{"UserID": 1, "Group": "2вб1", "RawText": "Замены 05.11.2026 (Четверг)
+				\nГруппа: 2вб1
+\n
+				\n МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404
+				\n• 5. История  Филатов Д.А. Производственный корпус-Аудитория 119 (О)
+				\n• 6. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404"}`,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail: invalid JSON(broken group and group in raw text)",
+			requestBody: `{"UserID": 1, "Group": "2вб", "RawText": "Замены 05.11.2026 (Четверг)
+				\nГруппа: б1
+\n
+				\n• 4. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404
+				\n• 5. История  Филатов Д.А. Производственный корпус-Аудитория 119 (О)
+				\n• 6. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404"}`,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "fail: invalid JSON(broken USERID)",
+			requestBody: `{"UserID": -1, "Group": "2вб1", "RawText": "Замены 05.11.2026 (Четверг)
+				\nГруппа: 2вб1
+
+				\n• 4. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404
+				\n• 5. История  Филатов Д.А. Производственный корпус-Аудитория 119 (О)
+				\n• 6. МДК 05.02 Разработка кода информационных систем Иванова В.И. Основной корпус-Аудитория 404"}`,
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+	mockRepo := &MockChangeRepo{}
+	mockRepoSchedule := &MockScheduleRepo{}
+	changeService := &service.ChangeService{Repo: mockRepo, RepoSchedule: mockRepoSchedule}
+	changeHandler := &ChangeHandler{ChangeService: changeService}
+
+
+	for _, tc := range tests{
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/parse", bytes.NewBufferString(tc.requestBody))
+			rr := httptest.NewRecorder()
+
+			changeHandler.ImportReplacements(rr, req)
+
+			if rr.Code != tc.expectedCode{
+				t.Errorf("ожидался статус-код %d, пришел %d", tc.expectedCode, rr.Code)
+			}
+		})
+	}
+}
