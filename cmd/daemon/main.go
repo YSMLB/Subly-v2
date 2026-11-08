@@ -5,11 +5,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/gorilla/websocket"
+	"github.com/pierrec/lz4/v4"
 	"github.com/vmihailenco/msgpack/v5"
 )
 
@@ -64,7 +67,18 @@ func unpackPacket(response []byte) (int, int, int, []byte, error){
 	if len(response) > 10{
 		payload = response[10:]
 
+		if response[6] > 0{
+			buffer := make([]byte, 10 * len(payload) + 1024)
+			dn, err := lz4.UncompressBlock(payload, buffer)//функция РАЗЖАТИЯ
+			if err != nil{
+				return 0, 0, 0, nil, errors.New("Ошибка при РАЗЖАТИИ!")
+			}
+
+			payload = buffer[:dn]
+		}
+
 		return int(cmd), int(seq), int(opcode), payload, nil
+		
 	}
 
 	return int(cmd), int(seq), int(opcode), nil, nil
@@ -97,6 +111,9 @@ func replaceChangeInAPIHelper(text string, group string, userId int) error{
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated{
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Подробности ошиьки от API: %s\n", string(body))
+
 		return errors.New("Ошибка. Вернулся не тот статус-код")
 	}
 
@@ -104,8 +121,31 @@ func replaceChangeInAPIHelper(text string, group string, userId int) error{
 	return nil
 }
 
+func funcHandler(dec *msgpack.Decoder, v reflect.Value, extLen int) error{
+	buf := make([]byte, extLen)
+
+	err := dec.ReadFull(buf)
+	if err != nil{
+		return err
+	}
+
+	var val int64
+
+	for _, b := range buf{
+		val = (val << 8) | int64(b)
+		v.SetInt(val)
+	}
+
+	return nil
+}
+
 //точка входа
 func main(){
+	msgpack.RegisterExtDecoder(
+		1, int64(0),
+		funcHandler,
+	)
+
 	headers := make(http.Header)
 	url := "wss://api.oneme.ru/websocket"
 
@@ -144,7 +184,7 @@ func main(){
 
 	log.Printf("Сервер ответил: cmd = %d, seq = %d, opcode = %d\n", cmd, seq, opcode)
 
-	payload := map[string]any{"token": "An_Sx6HQ9HDiz6RzWO_8Dwlqah2xTYOjl9PgJLSR8h2OkSv2wBL5yhfgjjpQu3X5sip5Y3kJNQn"}
+	payload := map[string]any{"token": "An_Sx6HQ9HDi5z8qqps4vWRtAO3ngrpwrHjOA4tgNO_FTUGaz4658wcG_nCCx0gFo7nCRCiSFp1YtKNsKKH1bRoPoPxOrd2IMol6gYy1SxZ3RHTkVfBeJRcMld4xMU9-jBNQnfh1tVhX6qyB0_YikapuskcAJAhStSChVAab52bZgGs2X_41Q18E29avfGxTnh8KU0-bVkw5i0fSItoPj51i35lCLsjTjO18BlNZ20iFY5RQ4jyjpU7SHfjxqEIj4VHIE-qGaQtgt1I3oWHa3ead7uSN640SdwwwitWBYFM1vUv68FGFQ0z09RfB1Q6ARAvJfivcf2RxZsyod044c8Q7TC4AXRwOBHKEzjm0tmdtwW4ZNvBc34h_HCqxykYyPqbw7tfPdWSmZIpdrpwE39YLyZhFTjh0droHNBpYZkt0Dc4-1CHcS6uFSYTIEp-NC1nDfnQpuo8utT6mLbMm1i3TrY67dspvUbvpOfA2i9cNcQ2XjUMYzcR0pGneR-icApFijgvX92P9Uru86mPGXbtfN-SCPQ3BKPAc2tbSwBRtGgFpFq61fZHkzFl0WZVF8d2QqTFGbxKT24FjjE3_lyQuJPXPQYQezfeTrpdVQsXByRXTcdMyyNqmpi34hEJYmTQq_hjvWmEnTWeWIrokx44YsA4gIVLJaoDEgKKE3R5GwGGEhNqWQ-O_IyxvYEIT0CTX31g"}
 
 	authByte, err := SS(0, 1, 19, payload)
 	if err != nil{

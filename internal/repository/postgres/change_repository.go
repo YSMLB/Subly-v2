@@ -21,8 +21,16 @@ func (c *ChangeRepository) SaveChanges(changes domain.ProposedChange) (*domain.P
 	ctx := context.Background()
 	query := "INSERT INTO proposed_changes (user_id, slot_id, action, status, raw_text, new_start_time, new_end_time, new_room, created_add) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id;"
 
+	var slotID any
+
+	if changes.SlotID <= 0{
+		slotID = nil 
+	}else{
+		slotID = changes.SlotID
+	}
+
 	err := c.pool.QueryRow(ctx, query,
-		changes.UserID, changes.SlotID,
+		changes.UserID, slotID,
 		changes.Action, changes.Status,
 		changes.RawText, changes.NewStartTime,
 		changes.NewEndTime, changes.NewRoom,
