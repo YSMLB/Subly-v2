@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"subly-v2/internal/config"
 	"subly-v2/internal/handler"
 	"subly-v2/internal/repository/postgres"
 	"subly-v2/internal/service"
@@ -15,13 +16,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const poolStr = "postgres://postgres:postgres@localhost:5432/subly_db?sslmode=disable"
-
-
 
 func main() {
+	cfg := config.LoadConfig()
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, poolStr)
+	pool, err := pgxpool.New(ctx, cfg.ConnPgrs)
 	if err != nil{
 		log.Fatalf("Ошибка создания пул соединений: %v", err)
 	}
@@ -87,6 +86,6 @@ func main() {
 	router.Post("/changes/import-text", changeHandler.ImportReplacements)
 
 	log.Println("Subly-v2 сервер запущен на порту:8080...")
-	http.ListenAndServe(":8080", router)
+	http.ListenAndServe(cfg.HTTP, router)
 
 }
