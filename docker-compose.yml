@@ -1,4 +1,28 @@
 services: 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@postgres:5432/subly_db?sslmode=disable"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+  daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile.daemon
+    env_file:
+      - .env
+    environment:
+      SUBLY_API_URL: "http://api:8080/changes/import-text"
+    depends_on:
+      - api
+    restart: unless-stopped
   postgres:
     image: postgres:16-alpine
     environment:
