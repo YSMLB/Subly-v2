@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"subly-v2/internal/config"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/pierrec/lz4/v4"
@@ -272,134 +273,28 @@ func listenEvents(connection *websocket.Conn, cfg *config.ConfigStruct) error{
 
 //точка входа
 func main(){
-	cfg := config.LoadConfig()
 
 	msgpack.RegisterExtDecoder(
 		1, int64(0),
 		funcHandler,
 	)
 	
-
-	headers := make(http.Header)
-	url := cfg.MAX.URL_webSocket
-
-	headers.Set("Origin", "https://web.max.ru")//фиксируем заголовки
-
-	connection, _, err := websocket.DefaultDialer.Dial(url, headers)//получаем сокет, рукопожатие и обработанную ошибку
-	if err != nil{//логирование ошибки
-		log.Fatalf("Ошибка. Не удалось подключиться к серверу: %v", err)
-	}
-
-	defer connection.Close()//выходим из сокета
-
-	agentInfo := map[string]string{"deviceType": "WEB"}
-	payloadrr := map[string]any{"deviceId": cfg.MAX.MAX_deviceID, "userAgent": agentInfo}
-
-	ssByte, err := SS(0, 0, 6, payloadrr)//запаковываем
-	if err != nil{
-		log.Fatalf("Ошибка запаковки: %v", err)
-	}
-
-	//отправляем пакет
-	err = connection.WriteMessage(websocket.BinaryMessage, ssByte)
-	if err != nil{
-		log.Fatalf("Ошибка writeMessage: %v", err)
-	}
-
-	_, response, err := connection.ReadMessage()
-	if err != nil{
-		log.Fatalf("Ошибка readMessage: %v", err)
-	}
-
-	cmd, seq, opcode, _, err := unpackPacket(response)//распаковка
-	if err != nil{
-		log.Fatalf("Ошибка распаковки: %v", err)
-	}
-
-	log.Printf("Сервер ответил: cmd = %d, seq = %d, opcode = %d\n", cmd, seq, opcode)
-
-	payload := map[string]any{"token": cfg.MAX.MAX_token}
-
-	authByte, err := SS(0, 1, 19, payload)
-	if err != nil{
-		log.Fatalf("Ошибка упаковки байтов аутентификации: %v", err)
-	}
-
-	err = connection.WriteMessage(websocket.BinaryMessage, authByte)
-	if err != nil{
-		log.Fatalf("Ошибка writeMessage: %v", err)
-	}
-
-	_, response1, err := connection.ReadMessage()
-	if err != nil{
-		log.Fatalf("Ошибка readMessage: %v", err)
-	}
-
-	cmd1, seq1, opcode1, _, err := unpackPacket(response1)//распаковка
-	if err != nil{
-		log.Fatalf("Ошибка распаковки: %v", err)
-	}
-
-	log.Printf("Сервер ответил: cmd = %d, seq = %d, opcode = %d\n", cmd1, seq1, opcode1)
-
 	for {
-		_, response2, err := connection.ReadMessage()
+		cfg := config.LoadConfig()
+		socket, err := connectAndAuth(cfg)
+
 		if err != nil{
-			log.Fatalf("Ошибка readMessage: %v", err)
+			log.Printf("Error: %v, потворное подключение через 5 секунд...", err)
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
-		cmd, seq, opcode, payload, err := unpackPacket(response2)//распаковка
+		err = listenEvents(socket, cfg)
 		if err != nil{
-			log.Fatalf("Ошибка распаковки: %v", err)
-		}
-
-		switch opcode{
-		case 1:
-			responseByte, err := SS(1, seq, 1, nil)
-			if err != nil{
-				log.Fatalf("Ошибка запаковки: %v", err)
-			}
-
-			err = connection.WriteMessage(websocket.BinaryMessage, responseByte)
-			log.Printf("=== Ответили на пинг сервера ===")
-		
-		case 128:
-			log.Printf("=== Прилетело новое сообщение в чат! Длина данных: %d байт ===\n", len(payload))
+			log.Printf("Error: %v, потворное подключение к сокету через 5 секунд...", err)
 			
-			
-			//07.11.26 разбор входящего соо в демоне
-
-			payloadMain := make(map[string]any)
-
-			err = msgpack.Unmarshal(payload, &payloadMain)
-			if err != nil{
-				log.Fatalf("разбор полезной нагрузки завершился ошибкой: %v", err)
-			}
-
-			chatId := payloadMain["chatId"]
-			message := payloadMain["message"].(map[string]any)
-			text := message["text"].(string)
-
-			if strings.HasPrefix(text, "Замены") == false{
-				log.Printf("Переданное сообщение не содержит замен: %v, чат: %d", text, chatId)
-				break
-			}
-
-			groupS := strings.Split(text, "\n")
-			groupS = strings.Split(groupS[1], ":")
-			group := groupS[1]
-			group = strings.TrimSpace(group)
-
-			log.Printf("cmd: %d, opcode: %d ", cmd, opcode)
-
-			err = replaceChangeInAPIHelper(text, group, 1)
-			if err != nil{
-				log.Printf("Функция вернула ошибку: %v", err)
-			}
-
-			log.Println("=== Замени успешно записаны в Subly API ===")
-		default:
-			log.Printf("=== Фоновое событие: opcode = %d ===\n", opcode)
+			socket.Close()
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
