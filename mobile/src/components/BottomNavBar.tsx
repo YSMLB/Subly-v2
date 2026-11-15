@@ -38,7 +38,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentTab, onSelect
             color={currentTab === 'schedule' ? '#00E5FF' : '#7E8696'}
           />
           <Text style={[styles.tabLabel, currentTab === 'schedule' && styles.activeTabLabel]}>
-            Пары
+            Календарь
           </Text>
         </TouchableOpacity>
 

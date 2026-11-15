@@ -27,13 +27,17 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   }
 }
 
-export async function sendPushNotification(title: string, body: string): Promise<void> {
+export async function sendPushNotification(
+  title: string = 'Subly',
+  body: string = 'Есть изменения',
+  stealth: boolean = true
+): Promise<void> {
   try {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: `⚡ Subly | ${title}`,
-        body: body,
+        title: stealth ? 'Subly' : `⚡ Subly | ${title}`,
+        body: stealth ? 'Есть изменения' : body,
         sound: true,
         priority: Notifications.AndroidNotificationPriority.HIGH,
       },

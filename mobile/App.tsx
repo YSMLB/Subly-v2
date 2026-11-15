@@ -19,14 +19,20 @@ export default function App() {
     requestNotificationPermissions();
   }, []);
 
-  const handleTriggerNotification = (title: string, message: string, type: 'replacement' | 'reminder' | 'system' | 'task' = 'task') => {
+  const handleTriggerNotification = (
+    title: string,
+    message: string,
+    type: 'replacement' | 'reminder' | 'system' | 'task' = 'task'
+  ) => {
+    // Внутренний неоновый баннер показывает полные данные со свечением:
     setBannerNotification({
       id: Date.now().toString(),
       title,
       message,
       type,
     });
-    sendPushNotification(title, message);
+    // Системный пуш на экран блокировки в стелс-режиме (без палева):
+    sendPushNotification('Subly', 'Есть изменения', true);
   };
 
   return (
@@ -46,6 +52,7 @@ export default function App() {
             <TasksScreen
               onNavigateToSchedule={() => setCurrentTab('schedule')}
               onTriggerNotification={handleTriggerNotification}
+              onLogout={() => setIsLoggedIn(false)}
             />
           )}
           {currentTab === 'schedule' && <ScheduleScreen />}

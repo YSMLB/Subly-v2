@@ -5,8 +5,12 @@ export interface Task {
   description?: string;
   status: 'pending' | 'in_progress' | 'completed';
   deadline?: string;
+  category?: string;
   is_pinned?: boolean;
   is_auto_college?: boolean;
+  date?: string; // YYYY-MM-DD
+  completed_at?: string; // YYYY-MM-DD
+  created_at?: string;
 }
 
 export interface ScheduleSlot {

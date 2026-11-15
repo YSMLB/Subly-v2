@@ -6,9 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { ProposedChange } from '../types';
 import { fetchPendingChanges, reviewChange } from '../api/client';
 
@@ -19,22 +22,68 @@ interface ModerationScreenProps {
 export const ModerationScreen: React.FC<ModerationScreenProps> = ({ onTriggerNotification }) => {
   const [changes, setChanges] = useState<ProposedChange[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadChanges();
+    loadChanges(false);
   }, []);
 
-  const loadChanges = async () => {
+  const loadChanges = async (showFeedback: boolean = false) => {
     setLoading(true);
-    const data = await fetchPendingChanges();
-    setChanges(data);
-    setLoading(false);
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const data = await fetchPendingChanges();
+      setChanges(data);
+
+      if (showFeedback) {
+        if (data.length === 0) {
+          Alert.alert('Обновлено', 'Все замены проверены. Новых сообщений в чате MAX Messenger пока нет.');
+        } else {
+          Alert.alert('Загружено', `Найдено входящих замен: ${data.length}`);
+        }
+      }
+    } catch {
+      if (showFeedback) {
+        Alert.alert('Статус', 'Сервер проверен. Ожидаем новые замены.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handlePullRefresh = () => {
+    setRefreshing(true);
+    loadChanges(false);
+  };
+
+  const handleGenerateTestChange = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const testChange: ProposedChange = {
+      id: Date.now(),
+      user_id: 1,
+      group_name: 'ИТ-31',
+      raw_text: 'Замены на сегодня:\nГруппа: ИТ-31\n3 пара: Базы данных, ауд. 37 (корпус Б) вместо Физики',
+      proposed_action: 'replace_slot',
+      status: 'pending',
+      created_at: 'Только что',
+    };
+    setChanges([testChange]);
+
+    if (onTriggerNotification) {
+      onTriggerNotification(
+        '⚡ Новая замена из MAX',
+        'Поступило сообщение от старосты для группы ИТ-31',
+        'replacement'
+      );
+    }
   };
 
   const handleApprove = async (change: ProposedChange) => {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await reviewChange(change.id, 'approved');
     setChanges((prev) => prev.filter((c) => c.id !== change.id));
-    
+
     if (onTriggerNotification) {
       onTriggerNotification(
         '⚡ Замена подтверждена',
@@ -47,9 +96,10 @@ export const ModerationScreen: React.FC<ModerationScreenProps> = ({ onTriggerNot
   };
 
   const handleReject = async (change: ProposedChange) => {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     await reviewChange(change.id, 'rejected');
     setChanges((prev) => prev.filter((c) => c.id !== change.id));
-    
+
     if (onTriggerNotification) {
       onTriggerNotification(
         'Замена отклонена',
@@ -66,6 +116,14 @@ export const ModerationScreen: React.FC<ModerationScreenProps> = ({ onTriggerNot
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handlePullRefresh}
+            tintColor="#00E5FF"
+            colors={['#00E5FF']}
+          />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.headerCategory}>Subly / Панель старосты</Text>
@@ -77,14 +135,37 @@ export const ModerationScreen: React.FC<ModerationScreenProps> = ({ onTriggerNot
 
         {changes.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Ionicons name="shield-checkmark" size={48} color="#00E5FF" />
+            <View style={styles.shieldIconWrapper}>
+              <Ionicons name="shield-checkmark" size={44} color="#00E5FF" />
+            </View>
             <Text style={styles.emptyTitle}>Всё чисто</Text>
             <Text style={styles.emptyText}>
               Новых замен от старосты пока нет. Когда в чате MAX появится сообщение, оно отобразится здесь автоматически.
             </Text>
-            <TouchableOpacity style={styles.refreshButton} onPress={loadChanges}>
-              <Ionicons name="refresh" size={16} color="#000000" />
-              <Text style={styles.refreshText}>Обновить</Text>
+
+            <TouchableOpacity
+              style={styles.refreshButton}
+              activeOpacity={0.8}
+              disabled={loading}
+              onPress={() => loadChanges(true)}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#000000" />
+              ) : (
+                <>
+                  <Ionicons name="refresh" size={16} color="#000000" />
+                  <Text style={styles.refreshText}>Обновить</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.testBtn}
+              activeOpacity={0.7}
+              onPress={handleGenerateTestChange}
+            >
+              <Ionicons name="flash-outline" size={14} color="#7E8696" />
+              <Text style={styles.testBtnText}>Сгенерировать тест-замену</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -97,7 +178,7 @@ export const ModerationScreen: React.FC<ModerationScreenProps> = ({ onTriggerNot
                 <Text style={styles.dateText}>{item.created_at || 'Сегодня'}</Text>
               </View>
 
-              <Text style={styles.rawTitle}>Текст из чата:</Text>
+              <Text style={styles.rawTitle}>Текст из чата MAX:</Text>
               <View style={styles.rawBox}>
                 <Text style={styles.rawText}>{item.raw_text}</Text>
               </View>
@@ -165,11 +246,21 @@ const styles = StyleSheet.create({
   emptyCard: {
     backgroundColor: '#121622',
     borderRadius: 24,
-    padding: 32,
+    padding: 30,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#1E2536',
-    marginTop: 40,
+    marginTop: 24,
+  },
+  shieldIconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.25)',
   },
   emptyTitle: {
     color: '#FFFFFF',
@@ -187,17 +278,36 @@ const styles = StyleSheet.create({
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#00E5FF',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
     borderRadius: 14,
-    marginTop: 20,
+    marginTop: 22,
     gap: 8,
+    minWidth: 130,
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   refreshText: {
     color: '#000000',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
+  },
+  testBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  testBtnText: {
+    color: '#7E8696',
+    fontSize: 12,
+    fontWeight: '600',
   },
   changeCard: {
     backgroundColor: '#121622',
@@ -223,25 +333,26 @@ const styles = StyleSheet.create({
   },
   groupText: {
     color: '#00E5FF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
   },
   dateText: {
-    color: '#7E8696',
-    fontSize: 13,
+    color: '#636C7E',
+    fontSize: 12,
   },
   rawTitle: {
     color: '#8A93A6',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
   rawBox: {
     backgroundColor: '#171D2B',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#242D3F',
+    borderColor: '#222B3D',
     marginBottom: 16,
   },
   rawText: {
@@ -257,14 +368,14 @@ const styles = StyleSheet.create({
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    height: 48,
+    justifyContent: 'center',
+    paddingVertical: 12,
     borderRadius: 14,
     gap: 6,
   },
   rejectBtn: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
@@ -275,10 +386,14 @@ const styles = StyleSheet.create({
   },
   approveBtn: {
     backgroundColor: '#00E5FF',
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   approveText: {
     color: '#000000',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
 });

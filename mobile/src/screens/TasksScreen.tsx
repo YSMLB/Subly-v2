@@ -10,26 +10,40 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Task, ScheduleSlot } from '../types';
 import { fetchTasks, updateTaskStatus, createTask, deleteTask, fetchSchedule } from '../api/client';
 import { sendPushNotification } from '../services/notificationService';
 
 interface TasksScreenProps {
   onNavigateToSchedule?: () => void;
-  onTriggerNotification?: (title: string, message: string) => void;
+  onTriggerNotification?: (title: string, message: string, type?: 'replacement' | 'reminder' | 'system' | 'task') => void;
+  onLogout?: () => void;
 }
+
+const CATEGORIES = ['🎓 Колледж', '💻 Код', '⚡ Срочно', '📌 Личное'];
+const QUICK_TIMES = ['10:00', '14:00', '18:00', '21:00', 'Весь день'];
 
 export const TasksScreen: React.FC<TasksScreenProps> = ({
   onNavigateToSchedule,
   onTriggerNotification,
+  onLogout,
 }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [todaySchedule, setTodaySchedule] = useState<ScheduleSlot[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isBurgerMenuOpen, setIsBurgerMenuOpen] = useState(false);
+
+  // Поля модалки создания задачи
   const [newTitle, setNewTitle] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('🎓 Колледж');
+  const [selectedTime, setSelectedTime] = useState<string>('14:00');
+  const [customTime, setCustomTime] = useState<string>('');
+  const [isNewPinned, setIsNewPinned] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -38,7 +52,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
   const loadData = async () => {
     const [taskList, scheduleList] = await Promise.all([
       fetchTasks(),
-      fetchSchedule(),
+      fetchSchedule(new Date().getDay() || 1),
     ]);
 
     setTodaySchedule(scheduleList);
@@ -58,7 +72,8 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
         status: 'pending',
         is_pinned: true,
         is_auto_college: true,
-        deadline: hasReplacement ? '⚡ Есть замена' : '4 пары',
+        category: '🎓 Колледж',
+        deadline: hasReplacement ? '⚡ Есть замена' : 'Расписание',
       };
       combinedTasks = [collegeTask, ...combinedTasks];
     }
@@ -100,16 +115,63 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
 
   const handleCreateTask = async () => {
     if (!newTitle.trim()) return;
-    const created = await createTask(1, newTitle.trim());
+
+    const timeLabel = customTime.trim() || selectedTime || 'Today';
+
+    const created = await createTask(1, newTitle.trim(), {
+      deadline: timeLabel,
+      category: selectedCategory,
+      is_pinned: isNewPinned,
+      date: new Date().toISOString().split('T')[0],
+    });
+
     setTasks((prev) => [created, ...prev]);
+
+    // Сброс формы
     setNewTitle('');
+    setCustomTime('');
+    setSelectedTime('14:00');
+    setIsNewPinned(false);
     setIsModalOpen(false);
 
     if (onTriggerNotification) {
-      onTriggerNotification('Новая задача создана', `«${created.title}» добавлена в список дел`);
+      onTriggerNotification(
+        'Новая задача создана',
+        `«${created.title}» добавлена в список дел`,
+        'task'
+      );
     } else {
-      sendPushNotification('Новая задача создана', `«${created.title}» добавлена в список дел`);
+      sendPushNotification('Subly', 'Есть изменения', true);
     }
+  };
+
+  const handleContactDev = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Linking.openURL('https://t.me/amiri2sb').catch(() => {
+      Alert.alert(
+        'Связь с разработчиком',
+        'Telegram разработчика: @amiri2sb\nПочта поддержки: support@subly.app',
+        [{ text: 'Понятно' }]
+      );
+    });
+  };
+
+  const handleLogoutPress = () => {
+    setIsBurgerMenuOpen(false);
+    Alert.alert(
+      'Выйти из аккаунта?',
+      'Вы сможете войти снова в любое время.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Выйти',
+          style: 'destructive',
+          onPress: () => {
+            if (onLogout) onLogout();
+          },
+        },
+      ]
+    );
   };
 
   const pinnedTasks = tasks.filter((t) => t.is_pinned && t.status !== 'completed');
@@ -147,23 +209,33 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
             }
           }}
         >
-          <Text
-            style={[
-              styles.taskTitle,
-              task.status === 'completed' && styles.completedTitle,
-              isCollege && styles.collegeTaskTitle,
-            ]}
-          >
-            {task.title}
-          </Text>
+          <View style={styles.titleWrapper}>
+            <Text
+              style={[
+                styles.taskTitle,
+                task.status === 'completed' && styles.completedTitle,
+                isCollege && styles.collegeTaskTitle,
+              ]}
+            >
+              {task.title}
+            </Text>
 
-          {task.deadline && (
-            <View style={[styles.badge, isCollege && styles.collegeBadge]}>
-              <Text style={[styles.badgeText, isCollege && styles.collegeBadgeText]}>
-                {task.deadline}
-              </Text>
+            <View style={styles.badgesRow}>
+              {task.category && (
+                <View style={styles.categoryBadge}>
+                  <Text style={styles.categoryBadgeText}>{task.category}</Text>
+                </View>
+              )}
+              {task.deadline && (
+                <View style={[styles.badge, isCollege && styles.collegeBadge]}>
+                  <Ionicons name="time-outline" size={11} color="#00E5FF" style={{ marginRight: 3 }} />
+                  <Text style={[styles.badgeText, isCollege && styles.collegeBadgeText]}>
+                    {task.deadline}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
+          </View>
         </TouchableOpacity>
 
         <View style={styles.rowActions}>
@@ -200,18 +272,30 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerCategory}>Subly / Задачи</Text>
-            <Text style={styles.headerTitle}>Today</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity
+              style={styles.burgerBtn}
+              activeOpacity={0.7}
+              onPress={() => setIsBurgerMenuOpen(true)}
+            >
+              <Ionicons name="menu" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.headerTitleBox}>
+              <Text style={styles.headerCategory}>Subly / Задачи</Text>
+              <Text style={styles.headerTitle}>Today</Text>
+            </View>
           </View>
+
           <TouchableOpacity
             style={styles.testNotifyBtn}
+            activeOpacity={0.7}
             onPress={() => {
               const msg = '3 пара: Базы данных (ауд. 37, корпус Б) вместо Физики';
               if (onTriggerNotification) {
-                onTriggerNotification('⚡ Замена в расписании!', msg);
+                onTriggerNotification('⚡ Замена в расписании!', msg, 'replacement');
               } else {
-                sendPushNotification('⚡ Замена в расписании!', msg);
+                sendPushNotification('Subly', 'Есть изменения', true);
               }
             }}
           >
@@ -238,9 +322,11 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
             <Text style={styles.sectionTitle}>Today</Text>
             <Text style={styles.sectionCount}>{todayTasks.length}</Text>
           </View>
-          <View style={styles.card}>
+          <View style={styles.tasksListContainer}>
             {todayTasks.length === 0 ? (
-              <Text style={styles.emptyText}>Все задачи выполнены 🎉</Text>
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>Все задачи выполнены 🎉</Text>
+              </View>
             ) : (
               todayTasks.map((task) => renderTaskItem(task, false))
             )}
@@ -254,26 +340,116 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
               <Text style={styles.sectionTitle}>Completed</Text>
               <Text style={styles.sectionCount}>{completedTasks.length}</Text>
             </View>
-            <View style={styles.card}>
+            <View style={styles.tasksListContainer}>
               {completedTasks.map((task) => renderTaskItem(task, false))}
             </View>
           </View>
         )}
       </ScrollView>
 
+      {/* Floating Action Button */}
       <TouchableOpacity
         style={styles.fab}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         onPress={() => setIsModalOpen(true)}
       >
         <Ionicons name="add" size={32} color="#000000" />
       </TouchableOpacity>
 
-      {/* Модалка создания новой задачи */}
+      {/* =================== БУРГЕР МЕНЮ =================== */}
+      <Modal
+        visible={isBurgerMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsBurgerMenuOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.burgerOverlay}
+          activeOpacity={1}
+          onPress={() => setIsBurgerMenuOpen(false)}
+        >
+          <View
+            style={styles.drawerContainer}
+            onStartShouldSetResponder={() => true}
+          >
+            {/* Header профиля */}
+            <View style={styles.drawerHeader}>
+              <View style={styles.drawerAvatar}>
+                <Text style={styles.drawerAvatarText}>YS</Text>
+              </View>
+              <View style={styles.drawerUserInfo}>
+                <Text style={styles.drawerUserName}>amiri2sb</Text>
+                <View style={styles.drawerRoleBadge}>
+                  <Text style={styles.drawerRoleText}>⚡ Староста ИТ-31</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsBurgerMenuOpen(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#7E8696" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.drawerDivider} />
+
+            {/* Пункты меню */}
+            <View style={styles.drawerNav}>
+              <TouchableOpacity
+                style={styles.drawerItem}
+                activeOpacity={0.7}
+                onPress={handleContactDev}
+              >
+                <View style={[styles.drawerItemIcon, { backgroundColor: 'rgba(0, 229, 255, 0.12)' }]}>
+                  <Ionicons name="paper-plane" size={18} color="#00E5FF" />
+                </View>
+                <View style={styles.drawerItemTextBox}>
+                  <Text style={styles.drawerItemTitle}>Связаться с разработчиком</Text>
+                  <Text style={styles.drawerItemSub}>Telegram: @amiri2sb</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#4A5568" />
+              </TouchableOpacity>
+
+              <View style={styles.drawerItem}>
+                <View style={[styles.drawerItemIcon, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
+                  <Ionicons name="shield-checkmark" size={18} color="#10B981" />
+                </View>
+                <View style={styles.drawerItemTextBox}>
+                  <Text style={styles.drawerItemTitle}>Статус системы</Text>
+                  <Text style={styles.drawerItemSub}>MAX WSS: Активен • v2.0.0</Text>
+                </View>
+              </View>
+
+              <View style={styles.drawerItem}>
+                <View style={[styles.drawerItemIcon, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
+                  <Ionicons name="eye-off" size={18} color="#A78BFA" />
+                </View>
+                <View style={styles.drawerItemTextBox}>
+                  <Text style={styles.drawerItemTitle}>Стелс-режим пушей</Text>
+                  <Text style={styles.drawerItemSub}>Локскрин: «Есть изменения»</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.drawerFooter}>
+              <TouchableOpacity
+                style={styles.logoutButton}
+                activeOpacity={0.8}
+                onPress={handleLogoutPress}
+              >
+                <Ionicons name="log-out-outline" size={18} color="#EF4444" />
+                <Text style={styles.logoutText}>Выйти из аккаунта</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* =================== МОДАЛКА СОЗДАНИЯ ЗАДАЧИ =================== */}
       <Modal
         visible={isModalOpen}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setIsModalOpen(false)}
       >
         <KeyboardAvoidingView
@@ -281,15 +457,100 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
           style={styles.modalOverlay}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Новая задача</Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Новая задача</Text>
+              <TouchableOpacity
+                onPress={() => setIsModalOpen(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={22} color="#7E8696" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Название задачи */}
             <TextInput
               style={styles.modalInput}
               placeholder="Что нужно сделать?"
-              placeholderTextColor="#717A8C"
+              placeholderTextColor="#5E6778"
               value={newTitle}
               onChangeText={setNewTitle}
               autoFocus
             />
+
+            {/* Быстрый выбор времени */}
+            <Text style={styles.modalSubLabel}>Время / Дедлайн</Text>
+            <View style={styles.chipsRow}>
+              {QUICK_TIMES.map((time) => {
+                const isSelected = selectedTime === time && !customTime;
+                return (
+                  <TouchableOpacity
+                    key={time}
+                    style={[styles.chip, isSelected && styles.chipActive]}
+                    onPress={() => {
+                      setSelectedTime(time);
+                      setCustomTime('');
+                    }}
+                  >
+                    <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                      {time}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Кастомное время */}
+            <TextInput
+              style={styles.modalTimeInput}
+              placeholder="Или напишите своё время (например 16:30)"
+              placeholderTextColor="#5E6778"
+              value={customTime}
+              onChangeText={setCustomTime}
+            />
+
+            {/* Категории */}
+            <Text style={styles.modalSubLabel}>Категория</Text>
+            <View style={styles.chipsRow}>
+              {CATEGORIES.map((cat) => {
+                const isSelected = selectedCategory === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.chip, isSelected && styles.chipActive]}
+                    onPress={() => setSelectedCategory(cat)}
+                  >
+                    <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Тумблер закрепа */}
+            <TouchableOpacity
+              style={[styles.pinToggleRow, isNewPinned && styles.pinToggleRowActive]}
+              activeOpacity={0.8}
+              onPress={() => setIsNewPinned(!isNewPinned)}
+            >
+              <View style={styles.pinToggleLeft}>
+                <Ionicons
+                  name={isNewPinned ? 'pin' : 'pin-outline'}
+                  size={18}
+                  color={isNewPinned ? '#00E5FF' : '#7E8696'}
+                />
+                <Text style={[styles.pinToggleText, isNewPinned && styles.pinToggleTextActive]}>
+                  Закрепить вверху (неоновый контур)
+                </Text>
+              </View>
+              <Ionicons
+                name={isNewPinned ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={isNewPinned ? '#00E5FF' : '#5E6778'}
+              />
+            </TouchableOpacity>
+
+            {/* Кнопки */}
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalCancel}
@@ -308,7 +569,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Шторка просмотра расписания из авто-задачи */}
+      {/* =================== ШТОРКА РАСПИСАНИЯ =================== */}
       <Modal
         visible={isScheduleModalOpen}
         transparent
@@ -392,6 +653,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  burgerBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#121622',
+    borderWidth: 1,
+    borderColor: '#1E2536',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleBox: {
+    justifyContent: 'center',
+  },
   headerCategory: {
     color: '#7E8696',
     fontSize: 13,
@@ -401,9 +680,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: '#FFFFFF',
-    fontSize: 38,
+    fontSize: 34,
     fontWeight: '800',
-    marginTop: 4,
+    marginTop: 2,
     letterSpacing: -0.5,
   },
   testNotifyBtn: {
@@ -446,13 +725,16 @@ const styles = StyleSheet.create({
   pinnedCardsContainer: {
     gap: 10,
   },
-  card: {
+  tasksListContainer: {
+    gap: 10,
+  },
+  emptyCard: {
     backgroundColor: '#121622',
-    borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    borderRadius: 18,
+    paddingVertical: 18,
     borderWidth: 1,
     borderColor: '#1E2536',
+    alignItems: 'center',
   },
   taskRow: {
     flexDirection: 'row',
@@ -478,16 +760,16 @@ const styles = StyleSheet.create({
   },
   taskContent: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingRight: 8,
   },
-  taskTitle: {
+  titleWrapper: {
     flex: 1,
+  },
+  taskTitle: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '500',
+    marginBottom: 4,
   },
   collegeTaskTitle: {
     fontWeight: '700',
@@ -497,14 +779,34 @@ const styles = StyleSheet.create({
     color: '#636C7E',
     textDecorationLine: 'line-through',
   },
-  badge: {
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  categoryBadge: {
+    backgroundColor: '#182133',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
-    marginLeft: 8,
+    borderColor: '#22304A',
+  },
+  categoryBadgeText: {
+    color: '#A0AEC0',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 229, 255, 0.25)',
   },
   badgeText: {
     color: '#00E5FF',
@@ -531,7 +833,6 @@ const styles = StyleSheet.create({
     color: '#7E8696',
     fontSize: 14,
     textAlign: 'center',
-    paddingVertical: 18,
   },
   fab: {
     position: 'absolute',
@@ -549,43 +850,251 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     elevation: 8,
   },
-  modalOverlay: {
+  burgerOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-start',
+  },
+  drawerContainer: {
+    backgroundColor: '#121622',
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: Platform.OS === 'ios' ? 56 : 28,
+    paddingBottom: 24,
+    borderWidth: 1,
+    borderColor: '#202738',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.8,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  drawerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    borderWidth: 1.5,
+    borderColor: '#00E5FF',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  drawerAvatarText: {
+    color: '#00E5FF',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  drawerUserInfo: {
+    flex: 1,
+  },
+  drawerUserName: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  drawerRoleBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#182133',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#263145',
+  },
+  drawerRoleText: {
+    color: '#00E5FF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  drawerDivider: {
+    height: 1,
+    backgroundColor: '#1E2536',
+    marginVertical: 12,
+  },
+  drawerNav: {
+    gap: 12,
+    marginVertical: 8,
+  },
+  drawerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#171D2B',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#222B3D',
+  },
+  drawerItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  drawerItemTextBox: {
+    flex: 1,
+  },
+  drawerItemTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  drawerItemSub: {
+    color: '#7E8696',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  drawerFooter: {
+    marginTop: 16,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
+  logoutText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#121622',
-    borderRadius: 24,
-    padding: 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     borderWidth: 1,
     borderColor: '#222B3D',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   modalTitle: {
     color: '#FFFFFF',
     fontSize: 20,
+    fontWeight: '800',
+  },
+  modalSubLabel: {
+    color: '#8A93A6',
+    fontSize: 12,
     fontWeight: '700',
-    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
   },
   modalInput: {
     backgroundColor: '#171D2B',
     borderRadius: 14,
     paddingHorizontal: 16,
-    height: 52,
+    height: 50,
     color: '#FFFFFF',
     fontSize: 16,
     borderWidth: 1,
     borderColor: '#263145',
+    marginBottom: 16,
+  },
+  modalTimeInput: {
+    backgroundColor: '#171D2B',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 42,
+    color: '#FFFFFF',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#263145',
+    marginBottom: 16,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  chip: {
+    backgroundColor: '#182133',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#22304A',
+  },
+  chipActive: {
+    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    borderColor: '#00E5FF',
+  },
+  chipText: {
+    color: '#8A93A6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: '#00E5FF',
+    fontWeight: '700',
+  },
+  pinToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#171D2B',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#263145',
     marginBottom: 20,
+  },
+  pinToggleRowActive: {
+    borderColor: '#00E5FF',
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
+  },
+  pinToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pinToggleText: {
+    color: '#8A93A6',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pinToggleTextActive: {
+    color: '#00E5FF',
+    fontWeight: '700',
   },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     gap: 12,
   },
   modalCancel: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 12,
   },
@@ -596,14 +1105,18 @@ const styles = StyleSheet.create({
   },
   modalSubmit: {
     backgroundColor: '#00E5FF',
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 26,
+    borderRadius: 14,
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
   },
   modalSubmitText: {
     color: '#000000',
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   scheduleModalOverlay: {
     flex: 1,
@@ -654,11 +1167,11 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#222B3D',
+    borderColor: '#263145',
   },
   sheetSlotRep: {
     borderColor: '#00E5FF',
-    backgroundColor: '#111A26',
+    backgroundColor: 'rgba(0, 229, 255, 0.08)',
   },
   sheetSlotTop: {
     flexDirection: 'row',
@@ -675,15 +1188,15 @@ const styles = StyleSheet.create({
     color: '#00E5FF',
   },
   repPill: {
-    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    backgroundColor: '#00E5FF',
+    borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
   },
   repPillText: {
-    color: '#00E5FF',
+    color: '#000000',
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   sheetSubject: {
     color: '#FFFFFF',
@@ -693,19 +1206,19 @@ const styles = StyleSheet.create({
   },
   sheetSlotBottom: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 16,
   },
   sheetMeta: {
     color: '#8A93A6',
-    fontSize: 12,
+    fontSize: 13,
   },
   sheetFullBtn: {
-    flexDirection: 'row',
     backgroundColor: '#00E5FF',
-    height: 52,
-    borderRadius: 16,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 16,
     gap: 8,
   },
   sheetFullBtnText: {

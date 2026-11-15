@@ -2,21 +2,27 @@ import { Task, ScheduleSlot, ProposedChange } from '../types';
 
 export const API_BASE_URL = 'http://192.168.0.103:8080';
 
-const initialMockTasks: Task[] = [
+const todayStr = '2026-11-15';
+
+let tasksCache: Task[] = [
   {
     id: 1,
     user_id: 1,
     title: 'Learn Go',
     status: 'pending',
     is_pinned: true,
-    deadline: 'Today',
+    deadline: '14:00',
+    category: '💻 Код',
+    date: todayStr,
   },
   {
     id: 2,
     user_id: 1,
     title: 'Лабораторная по БД №2',
     status: 'pending',
-    deadline: 'Today',
+    deadline: '18:00',
+    category: '🎓 Колледж',
+    date: todayStr,
   },
   {
     id: 3,
@@ -24,77 +30,297 @@ const initialMockTasks: Task[] = [
     title: 'Подготовить конспект по Архитектуре ЭВМ',
     status: 'pending',
     deadline: 'Tomorrow',
+    category: '🎓 Колледж',
+    date: '2026-11-16',
   },
   {
     id: 4,
     user_id: 1,
     title: 'Work on my programming project',
     status: 'completed',
-    deadline: 'Today',
+    deadline: '11:30',
+    category: '💻 Код',
+    date: todayStr,
+    completed_at: todayStr,
   },
   {
     id: 5,
     user_id: 1,
     title: 'To do the 2 tasks for LeetCode',
     status: 'completed',
-    deadline: 'Today',
+    deadline: '12:00',
+    category: '💻 Код',
+    date: todayStr,
+    completed_at: todayStr,
+  },
+  {
+    id: 6,
+    user_id: 1,
+    title: 'Подготовка к коллоквиуму по архитектуре ЭВМ',
+    status: 'completed',
+    deadline: '16:00',
+    category: '🎓 Колледж',
+    date: '2026-11-14',
+    completed_at: '2026-11-14',
+  },
+  {
+    id: 7,
+    user_id: 1,
+    title: 'Купить тетради и канцелярию',
+    status: 'completed',
+    deadline: '18:30',
+    category: '📌 Личное',
+    date: '2026-11-14',
+    completed_at: '2026-11-14',
+  },
+  {
+    id: 8,
+    user_id: 1,
+    title: 'Сдать лабораторную работу по БД №1',
+    status: 'completed',
+    deadline: '13:00',
+    category: '🎓 Колледж',
+    date: '2026-11-13',
+    completed_at: '2026-11-13',
+  },
+  {
+    id: 9,
+    user_id: 1,
+    title: 'Практика по ОС Linux в терминале',
+    status: 'completed',
+    deadline: '15:20',
+    category: '💻 Код',
+    date: '2026-11-13',
+    completed_at: '2026-11-13',
+  },
+  {
+    id: 10,
+    user_id: 1,
+    title: 'Go to college',
+    status: 'completed',
+    deadline: '08:30',
+    category: '🎓 Колледж',
+    date: '2026-11-11',
+    completed_at: '2026-11-11',
+  },
+  {
+    id: 11,
+    user_id: 1,
+    title: 'Read book (Clean Code)',
+    status: 'completed',
+    deadline: '21:00',
+    category: '📌 Личное',
+    date: '2026-11-11',
+    completed_at: '2026-11-11',
   },
 ];
 
-const initialMockSchedule: ScheduleSlot[] = [
-  {
-    id: 101,
-    day_of_week: 3,
-    order_num: 1,
-    subject: 'Высшая математика',
-    teacher: 'Иванов А.А.',
-    room: 'ауд. 402',
-    start_time: '08:30',
-    end_time: '10:00',
-    status: 'past',
-  },
-  {
-    id: 102,
-    day_of_week: 3,
-    order_num: 2,
-    subject: 'Архитектура ЭВМ',
-    teacher: 'Смирнов В.П.',
-    room: 'ауд. 215',
-    start_time: '10:15',
-    end_time: '11:45',
-    status: 'active',
-  },
-  {
-    id: 103,
-    day_of_week: 3,
-    order_num: 3,
-    subject: 'Базы данных',
-    teacher: 'Кузнецов Д.М.',
-    room: 'ауд. 37 (корпус Б)',
-    start_time: '12:00',
-    end_time: '13:30',
-    is_replacement: true,
-    status: 'upcoming',
-  },
-  {
-    id: 104,
-    day_of_week: 3,
-    order_num: 4,
-    subject: 'Английский язык',
-    teacher: 'Попова Е.С.',
-    room: 'ауд. 108',
-    start_time: '13:45',
-    end_time: '15:15',
-    status: 'upcoming',
-  },
-];
+const fullWeekSchedule: Record<number, ScheduleSlot[]> = {
+  1: [
+    {
+      id: 201,
+      day_of_week: 1,
+      order_num: 1,
+      subject: 'Архитектура ЭВМ',
+      teacher: 'Смирнов В.П.',
+      room: 'ауд. 215',
+      start_time: '08:30',
+      end_time: '10:00',
+    },
+    {
+      id: 202,
+      day_of_week: 1,
+      order_num: 2,
+      subject: 'Высшая математика',
+      teacher: 'Иванов А.А.',
+      room: 'ауд. 402',
+      start_time: '10:15',
+      end_time: '11:45',
+    },
+    {
+      id: 203,
+      day_of_week: 1,
+      order_num: 3,
+      subject: 'Программирование на Go',
+      teacher: 'Николаев А.Б.',
+      room: 'ауд. 308',
+      start_time: '12:00',
+      end_time: '13:30',
+    },
+  ],
+  2: [
+    {
+      id: 204,
+      day_of_week: 2,
+      order_num: 1,
+      subject: 'Физика',
+      teacher: 'Волкова И.Г.',
+      room: 'ауд. 102',
+      start_time: '08:30',
+      end_time: '10:00',
+    },
+    {
+      id: 205,
+      day_of_week: 2,
+      order_num: 2,
+      subject: 'Базы данных',
+      teacher: 'Кузнецов Д.М.',
+      room: 'ауд. 37',
+      start_time: '10:15',
+      end_time: '11:45',
+    },
+    {
+      id: 206,
+      day_of_week: 2,
+      order_num: 3,
+      subject: 'Английский язык',
+      teacher: 'Попова Е.С.',
+      room: 'ауд. 108',
+      start_time: '12:00',
+      end_time: '13:30',
+    },
+  ],
+  3: [
+    {
+      id: 101,
+      day_of_week: 3,
+      order_num: 1,
+      subject: 'Высшая математика',
+      teacher: 'Иванов А.А.',
+      room: 'ауд. 402',
+      start_time: '08:30',
+      end_time: '10:00',
+      status: 'past',
+    },
+    {
+      id: 102,
+      day_of_week: 3,
+      order_num: 2,
+      subject: 'Архитектура ЭВМ',
+      teacher: 'Смирнов В.П.',
+      room: 'ауд. 215',
+      start_time: '10:15',
+      end_time: '11:45',
+      status: 'active',
+    },
+    {
+      id: 103,
+      day_of_week: 3,
+      order_num: 3,
+      subject: 'Базы данных',
+      teacher: 'Кузнецов Д.М.',
+      room: 'ауд. 37 (корпус Б)',
+      start_time: '12:00',
+      end_time: '13:30',
+      is_replacement: true,
+      status: 'upcoming',
+    },
+    {
+      id: 104,
+      day_of_week: 3,
+      order_num: 4,
+      subject: 'Английский язык',
+      teacher: 'Попова Е.С.',
+      room: 'ауд. 108',
+      start_time: '13:45',
+      end_time: '15:15',
+      status: 'upcoming',
+    },
+  ],
+  4: [
+    {
+      id: 207,
+      day_of_week: 4,
+      order_num: 1,
+      subject: 'Операционные системы',
+      teacher: 'Орлов К.С.',
+      room: 'ауд. 304',
+      start_time: '08:30',
+      end_time: '10:00',
+    },
+    {
+      id: 208,
+      day_of_week: 4,
+      order_num: 2,
+      subject: 'Дискретная математика',
+      teacher: 'Иванов А.А.',
+      room: 'ауд. 405',
+      start_time: '10:15',
+      end_time: '11:45',
+    },
+    {
+      id: 209,
+      day_of_week: 4,
+      order_num: 3,
+      subject: 'Физкультура',
+      teacher: 'Сидоров Н.А.',
+      room: 'Спортзал',
+      start_time: '12:00',
+      end_time: '13:30',
+    },
+  ],
+  5: [
+    {
+      id: 210,
+      day_of_week: 5,
+      order_num: 1,
+      subject: 'Программирование на Go',
+      teacher: 'Николаев А.Б.',
+      room: 'ауд. 308',
+      start_time: '10:15',
+      end_time: '11:45',
+    },
+    {
+      id: 211,
+      day_of_week: 5,
+      order_num: 2,
+      subject: 'Компьютерные сети',
+      teacher: 'Морозов А.В.',
+      room: 'ауд. 212',
+      start_time: '12:00',
+      end_time: '13:30',
+    },
+    {
+      id: 212,
+      day_of_week: 5,
+      order_num: 3,
+      subject: 'Лабораторный практикум',
+      teacher: 'Николаев А.Б.',
+      room: 'ауд. 308',
+      start_time: '13:45',
+      end_time: '15:15',
+    },
+  ],
+  6: [
+    {
+      id: 213,
+      day_of_week: 6,
+      order_num: 1,
+      subject: 'История России',
+      teacher: 'Павлов В.И.',
+      room: 'ауд. 110',
+      start_time: '09:00',
+      end_time: '10:30',
+    },
+    {
+      id: 214,
+      day_of_week: 6,
+      order_num: 2,
+      subject: 'Философия',
+      teacher: 'Семенова О.Н.',
+      room: 'ауд. 110',
+      start_time: '10:45',
+      end_time: '12:15',
+    },
+  ],
+};
 
 const initialMockChanges: ProposedChange[] = [
   {
     id: 6,
     user_id: 1,
     group_name: 'ИТ-31',
-    raw_text: 'Замены на 11.11:\nГруппа: ИТ-31\n3 пара: Базы данных, ауд. 37',
+    raw_text: 'Замены на 11.11:\nГруппа: ИТ-31\n3 пара: Базы данных, ауд. 37 (корпус Б)',
     proposed_action: 'add_slot',
     status: 'pending',
     created_at: '2026-11-11 10:00',
@@ -104,20 +330,34 @@ const initialMockChanges: ProposedChange[] = [
 export async function fetchTasks(userId: number = 1): Promise<Task[]> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 1500);
     const response = await fetch(`${API_BASE_URL}/tasks?user_id=${userId}`, {
       signal: controller.signal,
     });
     clearTimeout(timeout);
     if (!response.ok) throw new Error('API error');
     const data = await response.json();
-    return Array.isArray(data) && data.length > 0 ? data : initialMockTasks;
+    if (Array.isArray(data) && data.length > 0) {
+      tasksCache = data;
+    }
   } catch {
-    return initialMockTasks;
+    // Offline / fallback cache
   }
+  return [...tasksCache];
 }
 
 export async function updateTaskStatus(taskId: number, status: 'pending' | 'completed'): Promise<void> {
+  const currentToday = new Date().toISOString().split('T')[0];
+  tasksCache = tasksCache.map((t) =>
+    t.id === taskId
+      ? {
+          ...t,
+          status,
+          completed_at: status === 'completed' ? currentToday : undefined,
+        }
+      : t
+  );
+
   try {
     await fetch(`${API_BASE_URL}/tasks/${taskId}/status`, {
       method: 'PATCH',
@@ -129,14 +369,31 @@ export async function updateTaskStatus(taskId: number, status: 'pending' | 'comp
   }
 }
 
-export async function createTask(userId: number, title: string): Promise<Task> {
+export interface CreateTaskOptions {
+  deadline?: string;
+  category?: string;
+  is_pinned?: boolean;
+  date?: string;
+}
+
+export async function createTask(
+  userId: number,
+  title: string,
+  options?: CreateTaskOptions
+): Promise<Task> {
+  const currentToday = new Date().toISOString().split('T')[0];
   const newTask: Task = {
     id: Date.now(),
     user_id: userId,
     title,
     status: 'pending',
-    deadline: 'Today',
+    deadline: options?.deadline || 'Today',
+    category: options?.category,
+    is_pinned: options?.is_pinned || false,
+    date: options?.date || currentToday,
   };
+
+  tasksCache = [newTask, ...tasksCache];
 
   try {
     await fetch(`${API_BASE_URL}/tasks`, {
@@ -156,6 +413,7 @@ export async function createTask(userId: number, title: string): Promise<Task> {
 }
 
 export async function deleteTask(taskId: number): Promise<void> {
+  tasksCache = tasksCache.filter((t) => t.id !== taskId);
   try {
     await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
       method: 'DELETE',
@@ -165,26 +423,26 @@ export async function deleteTask(taskId: number): Promise<void> {
   }
 }
 
-export async function fetchSchedule(userId: number = 1): Promise<ScheduleSlot[]> {
+export async function fetchSchedule(dayOfWeek: number = 3): Promise<ScheduleSlot[]> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const response = await fetch(`${API_BASE_URL}/schedule/today?user_id=${userId}`, {
+    const timeout = setTimeout(() => controller.abort(), 1500);
+    const response = await fetch(`${API_BASE_URL}/schedule/today?day_of_week=${dayOfWeek}`, {
       signal: controller.signal,
     });
     clearTimeout(timeout);
     if (!response.ok) throw new Error('API error');
     const data = await response.json();
-    return Array.isArray(data) && data.length > 0 ? data : initialMockSchedule;
+    return Array.isArray(data) && data.length > 0 ? data : fullWeekSchedule[dayOfWeek] || [];
   } catch {
-    return initialMockSchedule;
+    return fullWeekSchedule[dayOfWeek] || [];
   }
 }
 
 export async function fetchPendingChanges(userId: number = 1): Promise<ProposedChange[]> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
+    const timeout = setTimeout(() => controller.abort(), 1500);
     const response = await fetch(`${API_BASE_URL}/changes/pending?user_id=${userId}`, {
       signal: controller.signal,
     });
@@ -208,3 +466,4 @@ export async function reviewChange(id: number, status: 'approved' | 'rejected'):
     console.log('Review offline fallback');
   }
 }
+
