@@ -155,6 +155,16 @@ export async function createTask(userId: number, title: string): Promise<Task> {
   return newTask;
 }
 
+export async function deleteTask(taskId: number): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+  } catch (e) {
+    console.log('Delete task offline fallback');
+  }
+}
+
 export async function fetchSchedule(userId: number = 1): Promise<ScheduleSlot[]> {
   try {
     const controller = new AbortController();

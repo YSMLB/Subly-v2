@@ -9,23 +9,61 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Task } from '../types';
-import { fetchTasks, updateTaskStatus, createTask } from '../api/client';
+import { Task, ScheduleSlot } from '../types';
+import { fetchTasks, updateTaskStatus, createTask, deleteTask, fetchSchedule } from '../api/client';
+import { sendPushNotification } from '../services/notificationService';
 
-export const TasksScreen: React.FC = () => {
+interface TasksScreenProps {
+  onNavigateToSchedule?: () => void;
+  onTriggerNotification?: (title: string, message: string) => void;
+}
+
+export const TasksScreen: React.FC<TasksScreenProps> = ({
+  onNavigateToSchedule,
+  onTriggerNotification,
+}) => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [todaySchedule, setTodaySchedule] = useState<ScheduleSlot[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
 
   useEffect(() => {
-    loadTasks();
+    loadData();
   }, []);
 
-  const loadTasks = async () => {
-    const list = await fetchTasks();
-    setTasks(list);
+  const loadData = async () => {
+    const [taskList, scheduleList] = await Promise.all([
+      fetchTasks(),
+      fetchSchedule(),
+    ]);
+
+    setTodaySchedule(scheduleList);
+
+    // Автоматическая задача на учебный день (Пн - Сб)
+    const currentDay = new Date().getDay(); // 0 - Вс, 1 - Пн ... 6 - Сб
+    const isSchoolDay = currentDay >= 1 && currentDay <= 6;
+    const hasReplacement = scheduleList.some((s) => s.is_replacement);
+
+    let combinedTasks = [...taskList];
+
+    if (isSchoolDay && !combinedTasks.some((t) => t.is_auto_college)) {
+      const collegeTask: Task = {
+        id: 999999,
+        user_id: 1,
+        title: '🎓 Пары в колледже (Расписание на сегодня)',
+        status: 'pending',
+        is_pinned: true,
+        is_auto_college: true,
+        deadline: hasReplacement ? '⚡ Есть замена' : '4 пары',
+      };
+      combinedTasks = [collegeTask, ...combinedTasks];
+    }
+
+    setTasks(combinedTasks);
   };
 
   const toggleTask = (task: Task) => {
@@ -33,7 +71,31 @@ export const TasksScreen: React.FC = () => {
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
     );
-    updateTaskStatus(task.id, newStatus);
+    if (!task.is_auto_college) {
+      updateTaskStatus(task.id, newStatus);
+    }
+  };
+
+  const togglePin = (task: Task) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, is_pinned: !t.is_pinned } : t))
+    );
+  };
+
+  const handleDeleteTask = (task: Task) => {
+    Alert.alert('Удалить задачу?', `«${task.title}»`, [
+      { text: 'Отмена', style: 'cancel' },
+      {
+        text: 'Удалить',
+        style: 'destructive',
+        onPress: async () => {
+          setTasks((prev) => prev.filter((t) => t.id !== task.id));
+          if (!task.is_auto_college) {
+            await deleteTask(task.id);
+          }
+        },
+      },
+    ]);
   };
 
   const handleCreateTask = async () => {
@@ -42,11 +104,94 @@ export const TasksScreen: React.FC = () => {
     setTasks((prev) => [created, ...prev]);
     setNewTitle('');
     setIsModalOpen(false);
+
+    if (onTriggerNotification) {
+      onTriggerNotification('Новая задача создана', `«${created.title}» добавлена в список дел`);
+    } else {
+      sendPushNotification('Новая задача создана', `«${created.title}» добавлена в список дел`);
+    }
   };
 
   const pinnedTasks = tasks.filter((t) => t.is_pinned && t.status !== 'completed');
   const todayTasks = tasks.filter((t) => !t.is_pinned && t.status !== 'completed');
   const completedTasks = tasks.filter((t) => t.status === 'completed');
+
+  const renderTaskItem = (task: Task, isPinnedView: boolean = false) => {
+    const isCollege = task.is_auto_college;
+
+    return (
+      <View
+        key={task.id}
+        style={[
+          styles.taskRow,
+          isPinnedView && styles.pinnedRowBorder,
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.checkbox}
+          onPress={() => toggleTask(task)}
+        >
+          <Ionicons
+            name={task.status === 'completed' ? 'checkbox' : 'square-outline'}
+            size={22}
+            color={task.status === 'completed' ? '#00E5FF' : '#7E8696'}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.taskContent}
+          activeOpacity={isCollege ? 0.7 : 1}
+          onPress={() => {
+            if (isCollege) {
+              setIsScheduleModalOpen(true);
+            }
+          }}
+        >
+          <Text
+            style={[
+              styles.taskTitle,
+              task.status === 'completed' && styles.completedTitle,
+              isCollege && styles.collegeTaskTitle,
+            ]}
+          >
+            {task.title}
+          </Text>
+
+          {task.deadline && (
+            <View style={[styles.badge, isCollege && styles.collegeBadge]}>
+              <Text style={[styles.badgeText, isCollege && styles.collegeBadgeText]}>
+                {task.deadline}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.rowActions}>
+          <TouchableOpacity
+            style={styles.actionIcon}
+            onPress={() => togglePin(task)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons
+              name={task.is_pinned ? 'pin' : 'pin-outline'}
+              size={18}
+              color={task.is_pinned ? '#00E5FF' : '#5E6778'}
+            />
+          </TouchableOpacity>
+
+          {!isCollege && (
+            <TouchableOpacity
+              style={styles.actionIcon}
+              onPress={() => handleDeleteTask(task)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={18} color="#7E8696" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -55,8 +200,23 @@ export const TasksScreen: React.FC = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.headerCategory}>Subly / Задачи</Text>
-          <Text style={styles.headerTitle}>Today</Text>
+          <View>
+            <Text style={styles.headerCategory}>Subly / Задачи</Text>
+            <Text style={styles.headerTitle}>Today</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.testNotifyBtn}
+            onPress={() => {
+              const msg = '3 пара: Базы данных (ауд. 37, корпус Б) вместо Физики';
+              if (onTriggerNotification) {
+                onTriggerNotification('⚡ Замена в расписании!', msg);
+              } else {
+                sendPushNotification('⚡ Замена в расписании!', msg);
+              }
+            }}
+          >
+            <Ionicons name="notifications-outline" size={20} color="#00E5FF" />
+          </TouchableOpacity>
         </View>
 
         {pinnedTasks.length > 0 && (
@@ -64,22 +224,10 @@ export const TasksScreen: React.FC = () => {
             <View style={styles.sectionHeader}>
               <Ionicons name="pin" size={16} color="#00E5FF" />
               <Text style={styles.sectionTitle}>Pinned</Text>
+              <Text style={styles.pinnedCount}>({pinnedTasks.length})</Text>
             </View>
-            <View style={styles.card}>
-              {pinnedTasks.map((task) => (
-                <View key={task.id} style={styles.taskRow}>
-                  <TouchableOpacity
-                    style={styles.checkbox}
-                    onPress={() => toggleTask(task)}
-                  >
-                    <Ionicons name="square-outline" size={22} color="#7E8696" />
-                  </TouchableOpacity>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{task.deadline || 'Today'}</Text>
-                  </View>
-                </View>
-              ))}
+            <View style={styles.pinnedCardsContainer}>
+              {pinnedTasks.map((task) => renderTaskItem(task, true))}
             </View>
           </View>
         )}
@@ -92,30 +240,9 @@ export const TasksScreen: React.FC = () => {
           </View>
           <View style={styles.card}>
             {todayTasks.length === 0 ? (
-              <Text style={styles.emptyText}>Все задачи на сегодня выполнены 🎉</Text>
+              <Text style={styles.emptyText}>Все задачи выполнены 🎉</Text>
             ) : (
-              todayTasks.map((task, idx) => (
-                <View
-                  key={task.id}
-                  style={[
-                    styles.taskRow,
-                    idx !== todayTasks.length - 1 && styles.taskRowBorder,
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={styles.checkbox}
-                    onPress={() => toggleTask(task)}
-                  >
-                    <Ionicons name="square-outline" size={22} color="#7E8696" />
-                  </TouchableOpacity>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  {task.deadline && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{task.deadline}</Text>
-                    </View>
-                  )}
-                </View>
-              ))
+              todayTasks.map((task) => renderTaskItem(task, false))
             )}
           </View>
         </View>
@@ -128,25 +255,7 @@ export const TasksScreen: React.FC = () => {
               <Text style={styles.sectionCount}>{completedTasks.length}</Text>
             </View>
             <View style={styles.card}>
-              {completedTasks.map((task, idx) => (
-                <View
-                  key={task.id}
-                  style={[
-                    styles.taskRow,
-                    idx !== completedTasks.length - 1 && styles.taskRowBorder,
-                  ]}
-                >
-                  <TouchableOpacity
-                    style={styles.checkbox}
-                    onPress={() => toggleTask(task)}
-                  >
-                    <Ionicons name="checkbox" size={22} color="#00E5FF" />
-                  </TouchableOpacity>
-                  <Text style={[styles.taskTitle, styles.completedTitle]}>
-                    {task.title}
-                  </Text>
-                </View>
-              ))}
+              {completedTasks.map((task) => renderTaskItem(task, false))}
             </View>
           </View>
         )}
@@ -160,6 +269,7 @@ export const TasksScreen: React.FC = () => {
         <Ionicons name="add" size={32} color="#000000" />
       </TouchableOpacity>
 
+      {/* Модалка создания новой задачи */}
       <Modal
         visible={isModalOpen}
         transparent
@@ -174,7 +284,7 @@ export const TasksScreen: React.FC = () => {
             <Text style={styles.modalTitle}>Новая задача</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Название задачи..."
+              placeholder="Что нужно сделать?"
               placeholderTextColor="#717A8C"
               value={newTitle}
               onChangeText={setNewTitle}
@@ -197,6 +307,71 @@ export const TasksScreen: React.FC = () => {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Шторка просмотра расписания из авто-задачи */}
+      <Modal
+        visible={isScheduleModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsScheduleModalOpen(false)}
+      >
+        <View style={styles.scheduleModalOverlay}>
+          <View style={styles.scheduleModalSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Пары на сегодня</Text>
+                <Text style={styles.sheetSubtitle}>Итоговое расписание с заменами</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsScheduleModalOpen(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={26} color="#7E8696" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.sheetScroll}>
+              {todaySchedule.map((slot) => {
+                const isRep = slot.is_replacement;
+                return (
+                  <View
+                    key={slot.id}
+                    style={[styles.sheetSlot, isRep && styles.sheetSlotRep]}
+                  >
+                    <View style={styles.sheetSlotTop}>
+                      <Text style={[styles.sheetOrder, isRep && styles.sheetOrderRep]}>
+                        {slot.order_num} пара • {slot.start_time} - {slot.end_time}
+                      </Text>
+                      {isRep && (
+                        <View style={styles.repPill}>
+                          <Text style={styles.repPillText}>Замена</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.sheetSubject}>{slot.subject}</Text>
+                    <View style={styles.sheetSlotBottom}>
+                      <Text style={styles.sheetMeta}>📍 {slot.room}</Text>
+                      {slot.teacher && <Text style={styles.sheetMeta}>👤 {slot.teacher}</Text>}
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.sheetFullBtn}
+              onPress={() => {
+                setIsScheduleModalOpen(false);
+                if (onNavigateToSchedule) onNavigateToSchedule();
+              }}
+            >
+              <Text style={styles.sheetFullBtnText}>Перейти во вкладку «Пары»</Text>
+              <Ionicons name="arrow-forward" size={18} color="#000000" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -212,6 +387,9 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 20,
   },
   headerCategory: {
@@ -227,6 +405,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 4,
     letterSpacing: -0.5,
+  },
+  testNotifyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#121622',
+    borderWidth: 1,
+    borderColor: '#1E2536',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   section: {
     marginBottom: 22,
@@ -249,11 +437,20 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '600',
   },
+  pinnedCount: {
+    color: '#00E5FF',
+    fontSize: 13,
+    marginLeft: 6,
+    fontWeight: '700',
+  },
+  pinnedCardsContainer: {
+    gap: 10,
+  },
   card: {
     backgroundColor: '#121622',
     borderRadius: 22,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 4,
     borderWidth: 1,
     borderColor: '#1E2536',
   },
@@ -261,19 +458,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#121622',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1E2536',
   },
-  taskRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A2130',
+  pinnedRowBorder: {
+    borderColor: '#00E5FF',
+    borderWidth: 1.5,
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 10,
+    elevation: 6,
   },
   checkbox: {
     marginRight: 12,
   },
+  taskContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 8,
+  },
   taskTitle: {
     flex: 1,
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
+  },
+  collegeTaskTitle: {
+    fontWeight: '700',
+    color: '#E0F7FA',
   },
   completedTitle: {
     color: '#636C7E',
@@ -281,22 +499,39 @@ const styles = StyleSheet.create({
   },
   badge: {
     backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: 'rgba(0, 229, 255, 0.3)',
+    marginLeft: 8,
   },
   badgeText: {
     color: '#00E5FF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+  },
+  collegeBadge: {
+    backgroundColor: 'rgba(0, 229, 255, 0.2)',
+    borderColor: '#00E5FF',
+  },
+  collegeBadgeText: {
+    color: '#00E5FF',
+    fontWeight: '700',
+  },
+  rowActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionIcon: {
+    padding: 4,
   },
   emptyText: {
     color: '#7E8696',
     fontSize: 14,
     textAlign: 'center',
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
   fab: {
     position: 'absolute',
@@ -310,7 +545,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#00E5FF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.7,
     shadowRadius: 14,
     elevation: 8,
   },
@@ -366,6 +601,114 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   modalSubmitText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  scheduleModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+  },
+  scheduleModalSheet: {
+    backgroundColor: '#121622',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    maxHeight: '75%',
+    borderWidth: 1,
+    borderColor: '#222B3D',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#353D50',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  sheetSubtitle: {
+    color: '#8A93A6',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  sheetScroll: {
+    marginBottom: 16,
+  },
+  sheetSlot: {
+    backgroundColor: '#171D2B',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#222B3D',
+  },
+  sheetSlotRep: {
+    borderColor: '#00E5FF',
+    backgroundColor: '#111A26',
+  },
+  sheetSlotTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  sheetOrder: {
+    color: '#8A93A6',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sheetOrderRep: {
+    color: '#00E5FF',
+  },
+  repPill: {
+    backgroundColor: 'rgba(0, 229, 255, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  repPillText: {
+    color: '#00E5FF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  sheetSubject: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  sheetSlotBottom: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  sheetMeta: {
+    color: '#8A93A6',
+    fontSize: 12,
+  },
+  sheetFullBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#00E5FF',
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sheetFullBtnText: {
     color: '#000000',
     fontSize: 15,
     fontWeight: '700',

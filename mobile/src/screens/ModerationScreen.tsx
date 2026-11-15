@@ -12,7 +12,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { ProposedChange } from '../types';
 import { fetchPendingChanges, reviewChange } from '../api/client';
 
-export const ModerationScreen: React.FC = () => {
+interface ModerationScreenProps {
+  onTriggerNotification?: (title: string, message: string, type?: 'replacement' | 'reminder' | 'system' | 'task') => void;
+}
+
+export const ModerationScreen: React.FC<ModerationScreenProps> = ({ onTriggerNotification }) => {
   const [changes, setChanges] = useState<ProposedChange[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -30,13 +34,31 @@ export const ModerationScreen: React.FC = () => {
   const handleApprove = async (change: ProposedChange) => {
     await reviewChange(change.id, 'approved');
     setChanges((prev) => prev.filter((c) => c.id !== change.id));
-    Alert.alert('Замена одобрена', 'Расписание группы успешно обновлено в базе данных.');
+    
+    if (onTriggerNotification) {
+      onTriggerNotification(
+        '⚡ Замена подтверждена',
+        `Замена для «${change.group_name || 'группы'}» одобрена. Расписание обновлено!`,
+        'replacement'
+      );
+    } else {
+      Alert.alert('Замена одобрена', 'Расписание группы успешно обновлено в базе данных.');
+    }
   };
 
   const handleReject = async (change: ProposedChange) => {
     await reviewChange(change.id, 'rejected');
     setChanges((prev) => prev.filter((c) => c.id !== change.id));
-    Alert.alert('Замена отклонена', 'Заявка помечена как отклоненная.');
+    
+    if (onTriggerNotification) {
+      onTriggerNotification(
+        'Замена отклонена',
+        `Заявка для «${change.group_name || 'группы'}» отклонена.`,
+        'system'
+      );
+    } else {
+      Alert.alert('Замена отклонена', 'Заявка помечена как отклоненная.');
+    }
   };
 
   return (

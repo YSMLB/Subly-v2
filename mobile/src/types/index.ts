@@ -6,6 +6,7 @@ export interface Task {
   status: 'pending' | 'in_progress' | 'completed';
   deadline?: string;
   is_pinned?: boolean;
+  is_auto_college?: boolean;
 }
 
 export interface ScheduleSlot {
@@ -29,6 +30,14 @@ export interface ProposedChange {
   proposed_action: string;
   status: 'pending' | 'approved' | 'rejected';
   created_at?: string;
+}
+
+export interface NotificationPayload {
+  id: string;
+  title: string;
+  message: string;
+  type: 'replacement' | 'reminder' | 'system' | 'task';
+  timestamp?: string;
 }
 
 export type TabType = 'tasks' | 'schedule' | 'moderation';
