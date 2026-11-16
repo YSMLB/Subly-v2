@@ -18,21 +18,26 @@ type SendCodeRequest struct {
 	Email string `json:"email"`
 }
 
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type RegisterResponseUser struct {
-	ID int `json:"id"`
-	Username string `json:"username"`
-	Email string `json:"email"`
+	ID        int    `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
 	GroupName string `json:"group_name"`
 }
 
 type RegisterResponse struct {
-	Token string `json:"token"`
-	User RegisterResponseUser `json:"user"`
+	Token string               `json:"token"`
+	User  RegisterResponseUser `json:"user"`
 }
 
 func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	var req SendCodeRequest
-	err := json.NewDecoder(r.Body).Decode(&req) // декодируем тело запроса
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "некорректное тело запроса", http.StatusBadRequest)
 		return
@@ -46,7 +51,7 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	err = h.AuthService.RequestCode(req.Email)
 	if err != nil {
 		if errors.Is(err, domain.ErrRateLimited) {
-			http.Error(w, err.Error(), http.StatusTooManyRequests) // 429 при частых запросах
+			http.Error(w, err.Error(), http.StatusTooManyRequests)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -56,14 +61,14 @@ func (h *AuthHandler) SendCode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "ok",
+		"status":  "ok",
 		"message": "verification code sent",
 	})
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req service.RegisterRequest
-	err := json.NewDecoder(r.Body).Decode(&req) // декодируем запрос регистрации
+	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		http.Error(w, "некорректное тело запроса", http.StatusBadRequest)
 		return
@@ -77,11 +82,11 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	token, user, err := h.AuthService.Register(req)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserAlreadyExists) {
-			http.Error(w, err.Error(), http.StatusConflict) // 409 если уже зарегистрирован
+			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
 		if errors.Is(err, domain.ErrInvalidCode) {
-			http.Error(w, err.Error(), http.StatusBadRequest) // 400 при неверном/истекшем коде
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -91,14 +96,48 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	res := RegisterResponse{
 		Token: token,
 		User: RegisterResponseUser{
-			ID: user.ID,
-			Username: user.Username,
-			Email: user.Email,
+			ID:        user.ID,
+			Username:  user.Username,
+			Email:     user.Email,
 			GroupName: user.GroupName,
 		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated) // 201 Created
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(res)
+}
+
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var req LoginRequest
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "некорректное тело запроса", http.StatusBadRequest)
+		return
+	}
+
+	if req.Email == "" || req.Password == "" {
+		http.Error(w, "email и пароль обязательны", http.StatusBadRequest)
+		return
+	}
+
+	token, user, err := h.AuthService.Login(req.Email, req.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	res := RegisterResponse{
+		Token: token,
+		User: RegisterResponseUser{
+			ID:        user.ID,
+			Username:  user.Username,
+			Email:     user.Email,
+			GroupName: user.GroupName,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
 }

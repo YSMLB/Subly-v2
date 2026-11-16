@@ -57,7 +57,6 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Проверка пульса
 	router.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err := pool.Ping(r.Context()); err != nil {
 			http.Error(w, "БД недоступна", http.StatusServiceUnavailable)
@@ -67,29 +66,35 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
-	// auth
+	// auth (публичные эндпоинты)
 	router.Post("/api/auth/send-code", authHandler.SendCode)
 	router.Post("/api/auth/register", authHandler.Register)
+	router.Post("/api/auth/login", authHandler.Login)
 
-	// task
-	router.Post("/tasks", taskHandler.CreateTask)
-	router.Get("/tasks/{id}", taskHandler.GetTaskID)
-	router.Get("/tasks", taskHandler.GetList)
-	router.Patch("/tasks/{id}/status", taskHandler.UpdateStatus)
-	router.Delete("/tasks/{id}", taskHandler.DeleteTask)
+	// защищенные роуты
+	router.Group(func(r chi.Router) {
+		r.Use(handler.AuthMiddleware(cfg.JWTSecret))
 
-	// schedule
-	router.Post("/schedule", scheduleHandler.AddSlot)
-	router.Get("/schedule/today", scheduleHandler.GetScheduleToday)
-	router.Put("/schedule/{id}", scheduleHandler.UpdateTaskSchedule)
-	router.Post("/schedule/import", scheduleHandler.ImportSchedule)
+		// task
+		r.Post("/tasks", taskHandler.CreateTask)
+		r.Get("/tasks/{id}", taskHandler.GetTaskID)
+		r.Get("/tasks", taskHandler.GetList)
+		r.Patch("/tasks/{id}/status", taskHandler.UpdateStatus)
+		r.Delete("/tasks/{id}", taskHandler.DeleteTask)
 
-	// change
-	router.Post("/changes", changeHandler.SaveChanges)
-	router.Get("/changes/pending", changeHandler.GetPendingByUserID)
-	router.Get("/changes/{id}", changeHandler.GetChangeByID)
-	router.Patch("/changes/{id}/status", changeHandler.UpdateStatusChanges)
-	router.Post("/changes/import-text", changeHandler.ImportReplacements)
+		// schedule
+		r.Post("/schedule", scheduleHandler.AddSlot)
+		r.Get("/schedule/today", scheduleHandler.GetScheduleToday)
+		r.Put("/schedule/{id}", scheduleHandler.UpdateTaskSchedule)
+		r.Post("/schedule/import", scheduleHandler.ImportSchedule)
+
+		// change
+		r.Post("/changes", changeHandler.SaveChanges)
+		r.Get("/changes/pending", changeHandler.GetPendingByUserID)
+		r.Get("/changes/{id}", changeHandler.GetChangeByID)
+		r.Patch("/changes/{id}/status", changeHandler.UpdateStatusChanges)
+		r.Post("/changes/import-text", changeHandler.ImportReplacements)
+	})
 
 	log.Println("Subly-v2 сервер запущен на порту :8080...")
 	http.ListenAndServe(cfg.HTTP, router)

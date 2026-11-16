@@ -35,7 +35,6 @@ type RegisterRequest struct {
 	GroupName string `json:"group_name"`
 }
 
-// GenerateOTP генерирует криптостойкий 6-значный код (от 100000 до 999999)
 func GenerateOTP() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(900000))
 	if err != nil {
@@ -45,9 +44,7 @@ func GenerateOTP() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()+100000), nil
 }
 
-// RequestCode отправляет код подтверждения на email с проверкой rate limit
 func (a *AuthService) RequestCode(email string) error {
-	// 1. Проверяем действителен ли код (меньше 60 сек назад или нет)
 	isRecent, err := a.repo.IsCodeRequestedRecently(email)
 	if err != nil {
 		return err
@@ -56,19 +53,16 @@ func (a *AuthService) RequestCode(email string) error {
 		return domain.ErrRateLimited
 	}
 
-	// 2. Генерируем 6-значный код
 	code, err := GenerateOTP()
 	if err != nil {
 		return err
 	}
 
-	// 3. Сохраняем код в БД на 10 минут
 	err = a.repo.SaveVerificationCode(email, code, 10*time.Minute)
 	if err != nil {
 		return err
 	}
 
-	// 4. Отправляем письмо через mailer
 	if err := a.mailer.SendVerificationCode(email, code); err != nil {
 		return err
 	}
@@ -76,9 +70,7 @@ func (a *AuthService) RequestCode(email string) error {
 	return nil
 }
 
-// Register валидирует OTP-код, хэширует пароль, сохраняет пользователя и выдаёт JWT
 func (a *AuthService) Register(req RegisterRequest) (string, *domain.User, error) {
-	// 1. Проверяем, существует ли уже пользователь с таким email
 	existing, err := a.repo.GetUserByEmail(req.Email)
 	if err != nil {
 		return "", nil, err
@@ -87,7 +79,6 @@ func (a *AuthService) Register(req RegisterRequest) (string, *domain.User, error
 		return "", nil, domain.ErrUserAlreadyExists
 	}
 
-	// 2. Ищем действующий код в БД
 	validCode, err := a.repo.GetValidCode(req.Email)
 	if err != nil {
 		return "", nil, err
@@ -96,7 +87,6 @@ func (a *AuthService) Register(req RegisterRequest) (string, *domain.User, error
 		return "", nil, errors.New("код подтверждения истек или не существует")
 	}
 
-	// 3. Сверяем введённый код
 	if validCode.Code != req.Code {
 		_ = a.repo.IncrementAttempts(validCode.ID)
 		if validCode.Attempts+1 >= 5 {
@@ -105,13 +95,11 @@ func (a *AuthService) Register(req RegisterRequest) (string, *domain.User, error
 		return "", nil, domain.ErrInvalidCode
 	}
 
-	// 4. Хэшируем пароль
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", nil, fmt.Errorf("ошибка хэширования пароля: %w", err)
 	}
 
-	// 5. Создаём сущность пользователя
 	user := &domain.User{
 		Username:     req.Username,
 		Email:        req.Email,
@@ -125,10 +113,8 @@ func (a *AuthService) Register(req RegisterRequest) (string, *domain.User, error
 		return "", nil, err
 	}
 
-	// 6. Удаляем использованный код подтверждения
 	_ = a.repo.DeleteCode(req.Email)
 
-	// 7. Генерируем JWT токен на 30 дней
 	token, err := a.generateToken(user)
 	if err != nil {
 		return "", nil, fmt.Errorf("ошибка генерации токена: %w", err)
@@ -137,7 +123,28 @@ func (a *AuthService) Register(req RegisterRequest) (string, *domain.User, error
 	return token, user, nil
 }
 
-// generateToken выпускает JWT токен для пользователя
+func (a *AuthService) Login(email, password string) (string, *domain.User, error) {
+	user, err := a.repo.GetUserByEmail(email)
+	if err != nil {
+		return "", nil, err
+	}
+	if user == nil {
+		return "", nil, errors.New("неверный email или пароль")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return "", nil, errors.New("неверный email или пароль")
+	}
+
+	token, err := a.generateToken(user)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return token, user, nil
+}
+
 func (a *AuthService) generateToken(user *domain.User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
