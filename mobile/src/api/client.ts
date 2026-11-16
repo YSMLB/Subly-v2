@@ -1,6 +1,102 @@
-import { Task, ScheduleSlot, ProposedChange } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Task, ScheduleSlot, ProposedChange, User, AuthResponse } from '../types';
 
-export const API_BASE_URL = 'http://192.168.0.103:8080';
+export const API_BASE_URL = 'http://192.168.1.163:8080';
+
+const TOKEN_KEY = 'subly_auth_token';
+const USER_KEY = 'subly_auth_user';
+
+let currentToken: string | null = null;
+let currentUser: User | null = null;
+
+export async function setAuthSession(token: string, user: User): Promise<void> {
+  currentToken = token;
+  currentUser = user;
+  await AsyncStorage.setItem(TOKEN_KEY, token);
+  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export async function clearAuthSession(): Promise<void> {
+  currentToken = null;
+  currentUser = null;
+  await AsyncStorage.removeItem(TOKEN_KEY);
+  await AsyncStorage.removeItem(USER_KEY);
+}
+
+export async function getAuthSession(): Promise<{ token: string | null; user: User | null }> {
+  if (!currentToken) {
+    currentToken = await AsyncStorage.getItem(TOKEN_KEY);
+  }
+  if (!currentUser) {
+    const userStr = await AsyncStorage.getItem(USER_KEY);
+    if (userStr) {
+      try {
+        currentUser = JSON.parse(userStr);
+      } catch {}
+    }
+  }
+  return { token: currentToken, user: currentUser };
+}
+
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { token } = await getAuthSession();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export async function sendVerificationCode(email: string): Promise<{ status: string; message: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Ошибка отправки кода');
+  }
+  return await res.json();
+}
+
+export async function registerUser(req: {
+  email: string;
+  code: string;
+  username: string;
+  group_name: string;
+  password: string;
+}): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Ошибка регистрации');
+  }
+  const data: AuthResponse = await res.json();
+  await setAuthSession(data.token, data.user);
+  return data;
+}
+
+export async function loginUser(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Неверный email или пароль');
+  }
+  const data: AuthResponse = await res.json();
+  await setAuthSession(data.token, data.user);
+  return data;
+}
 
 const todayStr = '2026-11-15';
 
@@ -329,9 +425,11 @@ const initialMockChanges: ProposedChange[] = [
 
 export async function fetchTasks(userId: number = 1): Promise<Task[]> {
   try {
+    const headers = await getAuthHeaders();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 2000);
     const response = await fetch(`${API_BASE_URL}/tasks?user_id=${userId}`, {
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -359,9 +457,10 @@ export async function updateTaskStatus(taskId: number, status: 'pending' | 'comp
   );
 
   try {
+    const headers = await getAuthHeaders();
     await fetch(`${API_BASE_URL}/tasks/${taskId}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ status }),
     });
   } catch (e) {
@@ -396,9 +495,10 @@ export async function createTask(
   tasksCache = [newTask, ...tasksCache];
 
   try {
+    const headers = await getAuthHeaders();
     await fetch(`${API_BASE_URL}/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         user_id: userId,
         title,
@@ -415,8 +515,10 @@ export async function createTask(
 export async function deleteTask(taskId: number): Promise<void> {
   tasksCache = tasksCache.filter((t) => t.id !== taskId);
   try {
+    const headers = await getAuthHeaders();
     await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
       method: 'DELETE',
+      headers,
     });
   } catch (e) {
     console.log('Delete task offline fallback');
@@ -425,9 +527,11 @@ export async function deleteTask(taskId: number): Promise<void> {
 
 export async function fetchSchedule(dayOfWeek: number = 3): Promise<ScheduleSlot[]> {
   try {
+    const headers = await getAuthHeaders();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 2000);
     const response = await fetch(`${API_BASE_URL}/schedule/today?day_of_week=${dayOfWeek}`, {
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -441,9 +545,11 @@ export async function fetchSchedule(dayOfWeek: number = 3): Promise<ScheduleSlot
 
 export async function fetchPendingChanges(userId: number = 1): Promise<ProposedChange[]> {
   try {
+    const headers = await getAuthHeaders();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 2000);
     const response = await fetch(`${API_BASE_URL}/changes/pending?user_id=${userId}`, {
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -457,9 +563,10 @@ export async function fetchPendingChanges(userId: number = 1): Promise<ProposedC
 
 export async function reviewChange(id: number, status: 'approved' | 'rejected'): Promise<void> {
   try {
+    const headers = await getAuthHeaders();
     await fetch(`${API_BASE_URL}/changes/${id}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ status, reviewed_by: 1 }),
     });
   } catch (e) {

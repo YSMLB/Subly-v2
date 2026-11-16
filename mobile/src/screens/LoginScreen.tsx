@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { sendVerificationCode, registerUser, loginUser } from '../api/client';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -42,9 +43,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
+    if (!login.trim() || !password.trim()) {
+      Alert.alert('Ошибка', 'Введите email и пароль.');
+      return;
+    }
     Keyboard.dismiss();
+    setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onLoginSuccess();
+
+    try {
+      await loginUser(login.trim(), password);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onLoginSuccess();
+    } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Ошибка входа', err.message || 'Не удалось войти');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSendCode = async () => {
@@ -56,22 +72,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       Alert.alert('Ошибка', 'Введите имя или логин.');
       return;
     }
+    if (!regPassword.trim() || regPassword.length < 6) {
+      Alert.alert('Ошибка', 'Пароль должен быть не менее 6 символов.');
+      return;
+    }
 
     Keyboard.dismiss();
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Имитация отправки запроса на бэкенд
-    setTimeout(async () => {
-      setLoading(false);
+    try {
+      await sendVerificationCode(regEmail.trim());
       setRegisterStep('code');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         'Код отправлен!',
-        `6-значный код подтверждения отправлен на ${regEmail}.\n(Для быстрого теста: 742195)`,
+        `6-значный код подтверждения отправлен на ${regEmail.trim()}.\nПроверьте вашу почту.`,
         [{ text: 'Ввести код' }]
       );
-    }, 1000);
+    } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Ошибка', err.message || 'Не удалось отправить код');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyAndRegister = async () => {
@@ -83,8 +107,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setLoading(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    setTimeout(async () => {
-      setLoading(false);
+    try {
+      await registerUser({
+        email: regEmail.trim(),
+        code: verifyCode.trim(),
+        username: regName.trim(),
+        group_name: regGroup.trim() || 'ИТ-31',
+        password: regPassword,
+      });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('Успешно', 'Аккаунт успешно создан! Добро пожаловать в Subly.', [
         {
@@ -92,7 +122,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           onPress: onLoginSuccess,
         },
       ]);
-    }, 800);
+    } catch (err: any) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Ошибка регистрации', err.message || 'Неверный код или ошибка сервера');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -16,8 +16,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Task, ScheduleSlot } from '../types';
-import { fetchTasks, updateTaskStatus, createTask, deleteTask, fetchSchedule } from '../api/client';
+import { Task, ScheduleSlot, User } from '../types';
+import { fetchTasks, updateTaskStatus, createTask, deleteTask, fetchSchedule, getAuthSession } from '../api/client';
 import { sendPushNotification } from '../services/notificationService';
 
 interface TasksScreenProps {
@@ -39,6 +39,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
 }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [todaySchedule, setTodaySchedule] = useState<ScheduleSlot[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isBurgerMenuOpen, setIsBurgerMenuOpen] = useState(false);
@@ -79,10 +80,15 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
   }, []);
 
   const loadData = async () => {
-    const [taskList, scheduleList] = await Promise.all([
+    const [{ user }, taskList, scheduleList] = await Promise.all([
+      getAuthSession(),
       fetchTasks(),
       fetchSchedule(new Date().getDay() || 1),
     ]);
+
+    if (user) {
+      setCurrentUser(user);
+    }
 
     setTodaySchedule(scheduleList);
 
@@ -415,11 +421,17 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
             <View style={styles.drawerHeader}>
               <View style={styles.drawerProfileRow}>
                 <View style={styles.drawerAvatar}>
-                  <Text style={styles.drawerAvatarText}>YS</Text>
+                  <Text style={styles.drawerAvatarText}>
+                    {currentUser?.username ? currentUser.username.slice(0, 2).toUpperCase() : 'YS'}
+                  </Text>
                 </View>
                 <View style={styles.drawerUserInfo}>
-                  <Text style={styles.drawerUserName}>amiri2sb</Text>
-                  <Text style={styles.drawerUserSub}>subly.app</Text>
+                  <Text style={styles.drawerUserName}>
+                    {currentUser?.username || 'amiri2sb'}
+                  </Text>
+                  <Text style={styles.drawerUserSub}>
+                    {currentUser?.group_name ? `${currentUser.group_name} • subly` : 'subly.app'}
+                  </Text>
                 </View>
               </View>
               <TouchableOpacity

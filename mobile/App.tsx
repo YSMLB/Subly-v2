@@ -9,6 +9,7 @@ import { ModerationScreen } from './src/screens/ModerationScreen';
 import { BottomNavBar } from './src/components/BottomNavBar';
 import { NotificationBanner } from './src/components/NotificationBanner';
 import { requestNotificationPermissions, sendPushNotification } from './src/services/notificationService';
+import { getAuthSession, clearAuthSession } from './src/api/client';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -17,7 +18,17 @@ export default function App() {
 
   useEffect(() => {
     requestNotificationPermissions();
+    getAuthSession().then(({ token }) => {
+      if (token) {
+        setIsLoggedIn(true);
+      }
+    });
   }, []);
+
+  const handleLogout = async () => {
+    await clearAuthSession();
+    setIsLoggedIn(false);
+  };
 
   const handleTriggerNotification = (
     title: string,
@@ -52,7 +63,7 @@ export default function App() {
             <TasksScreen
               onNavigateToSchedule={() => setCurrentTab('schedule')}
               onTriggerNotification={handleTriggerNotification}
-              onLogout={() => setIsLoggedIn(false)}
+              onLogout={handleLogout}
             />
           )}
           {currentTab === 'schedule' && <ScheduleScreen />}

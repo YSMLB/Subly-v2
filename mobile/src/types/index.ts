@@ -44,4 +44,17 @@ export interface NotificationPayload {
   timestamp?: string;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  group_name: string;
+  role?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export type TabType = 'tasks' | 'schedule' | 'moderation';
