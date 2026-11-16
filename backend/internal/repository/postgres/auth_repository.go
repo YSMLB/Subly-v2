@@ -124,3 +124,19 @@ func (r *AuthRepository) GetUserByEmail(email string) (*domain.User, error) {
 
 	return &u, nil
 }
+
+func (r *AuthRepository) IsCodeRequestedRecently(email string) (bool, error) {
+	ctx := context.Background()
+	query := `SELECT EXISTS(
+		SELECT 1 FROM verification_codes 
+		WHERE email = $1 AND created_at > NOW() - INTERVAL '60 seconds'
+	)`
+
+	var exists bool
+	err := r.pool.QueryRow(ctx, query, email).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}

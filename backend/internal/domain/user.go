@@ -1,6 +1,14 @@
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+var (
+	ErrRateLimited = errors.New("слишком частые запросы, подождите минуту")
+	ErrInvalidCode = errors.New("неверный или истекший код")
+)
 
 type User struct {
     ID           int       `json:"id"`
@@ -32,4 +40,5 @@ type AuthRepository interface {
     
     CreateUser(user *User) error
     GetUserByEmail(email string) (*User, error)
+	IsCodeRequestedRecently(email string) (bool, error)
 }
