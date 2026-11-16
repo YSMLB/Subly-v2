@@ -104,7 +104,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         <View style={styles.header}>
           <Image
             source={require('../../assets/subly-logo.jpg')}
-            style={styles.logo}
+            style={[styles.logo, mode === 'register' && styles.logoRegister]}
             resizeMode="contain"
           />
           <Text style={styles.title}>Subly</Text>
@@ -319,25 +319,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 22,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 24,
   },
   logo: {
-    width: 90,
-    height: 90,
-    marginBottom: 12,
+    width: 175,
+    height: 175,
+    marginBottom: 8,
+  },
+  logoRegister: {
+    width: 100,
+    height: 100,
+    marginBottom: 4,
   },
   title: {
-    fontSize: 40,
+    fontSize: 44,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#8A93A6',
     marginTop: 4,
   },

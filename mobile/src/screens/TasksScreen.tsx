@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -11,6 +11,8 @@ import {
   Platform,
   Alert,
   Linking,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -27,6 +29,9 @@ interface TasksScreenProps {
 const CATEGORIES = ['🎓 Колледж', '💻 Код', '⚡ Срочно', '📌 Личное'];
 const QUICK_TIMES = ['10:00', '14:00', '18:00', '21:00', 'Весь день'];
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 300);
+
 export const TasksScreen: React.FC<TasksScreenProps> = ({
   onNavigateToSchedule,
   onTriggerNotification,
@@ -37,6 +42,30 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isBurgerMenuOpen, setIsBurgerMenuOpen] = useState(false);
+
+  // Анимация бокового меню слева
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+
+  const openDrawer = () => {
+    setIsBurgerMenuOpen(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      bounciness: 4,
+      speed: 14,
+    }).start();
+  };
+
+  const closeDrawer = (callback?: () => void) => {
+    Animated.timing(slideAnim, {
+      toValue: -DRAWER_WIDTH,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setIsBurgerMenuOpen(false);
+      if (callback) callback();
+    });
+  };
 
   // Поля модалки создания задачи
   const [newTitle, setNewTitle] = useState('');
@@ -157,21 +186,22 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
   };
 
   const handleLogoutPress = () => {
-    setIsBurgerMenuOpen(false);
-    Alert.alert(
-      'Выйти из аккаунта?',
-      'Вы сможете войти снова в любое время.',
-      [
-        { text: 'Отмена', style: 'cancel' },
-        {
-          text: 'Выйти',
-          style: 'destructive',
-          onPress: () => {
-            if (onLogout) onLogout();
+    closeDrawer(() => {
+      Alert.alert(
+        'Выйти из аккаунта?',
+        'Вы сможете войти снова в любое время.',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          {
+            text: 'Выйти',
+            style: 'destructive',
+            onPress: () => {
+              if (onLogout) onLogout();
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    });
   };
 
   const pinnedTasks = tasks.filter((t) => t.is_pinned && t.status !== 'completed');
@@ -276,7 +306,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
             <TouchableOpacity
               style={styles.burgerBtn}
               activeOpacity={0.7}
-              onPress={() => setIsBurgerMenuOpen(true)}
+              onPress={openDrawer}
             >
               <Ionicons name="menu" size={24} color="#FFFFFF" />
             </TouchableOpacity>
@@ -356,38 +386,47 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
         <Ionicons name="add" size={32} color="#000000" />
       </TouchableOpacity>
 
-      {/* =================== БУРГЕР МЕНЮ =================== */}
+      {/* =================== БОКОВОЕ БУРГЕР МЕНЮ (СЛЕВА) =================== */}
       <Modal
         visible={isBurgerMenuOpen}
         transparent
-        animationType="fade"
-        onRequestClose={() => setIsBurgerMenuOpen(false)}
+        animationType="none"
+        onRequestClose={() => closeDrawer()}
       >
-        <TouchableOpacity
-          style={styles.burgerOverlay}
-          activeOpacity={1}
-          onPress={() => setIsBurgerMenuOpen(false)}
-        >
-          <View
-            style={styles.drawerContainer}
-            onStartShouldSetResponder={() => true}
+        <View style={styles.burgerOverlay}>
+          {/* Фон затемнения справа */}
+          <TouchableOpacity
+            style={styles.burgerBackdrop}
+            activeOpacity={1}
+            onPress={() => closeDrawer()}
+          />
+
+          {/* Панель, выезжающая слева */}
+          <Animated.View
+            style={[
+              styles.drawerContainer,
+              {
+                width: DRAWER_WIDTH,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
           >
-            {/* Header профиля */}
+            {/* Header профиля без лишней залупы */}
             <View style={styles.drawerHeader}>
-              <View style={styles.drawerAvatar}>
-                <Text style={styles.drawerAvatarText}>YS</Text>
-              </View>
-              <View style={styles.drawerUserInfo}>
-                <Text style={styles.drawerUserName}>amiri2sb</Text>
-                <View style={styles.drawerRoleBadge}>
-                  <Text style={styles.drawerRoleText}>⚡ Староста ИТ-31</Text>
+              <View style={styles.drawerProfileRow}>
+                <View style={styles.drawerAvatar}>
+                  <Text style={styles.drawerAvatarText}>YS</Text>
+                </View>
+                <View style={styles.drawerUserInfo}>
+                  <Text style={styles.drawerUserName}>amiri2sb</Text>
+                  <Text style={styles.drawerUserSub}>subly.app</Text>
                 </View>
               </View>
               <TouchableOpacity
-                onPress={() => setIsBurgerMenuOpen(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={() => closeDrawer()}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
-                <Ionicons name="close" size={22} color="#7E8696" />
+                <Ionicons name="close" size={24} color="#7E8696" />
               </TouchableOpacity>
             </View>
 
@@ -398,7 +437,9 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
               <TouchableOpacity
                 style={styles.drawerItem}
                 activeOpacity={0.7}
-                onPress={handleContactDev}
+                onPress={() => {
+                  closeDrawer(() => handleContactDev());
+                }}
               >
                 <View style={[styles.drawerItemIcon, { backgroundColor: 'rgba(0, 229, 255, 0.12)' }]}>
                   <Ionicons name="paper-plane" size={18} color="#00E5FF" />
@@ -431,6 +472,7 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
               </View>
             </View>
 
+            {/* Футер с кнопкой выхода в самом низу */}
             <View style={styles.drawerFooter}>
               <TouchableOpacity
                 style={styles.logoutButton}
@@ -441,8 +483,8 @@ export const TasksScreen: React.FC<TasksScreenProps> = ({
                 <Text style={styles.logoutText}>Выйти из аккаунта</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </TouchableOpacity>
+          </Animated.View>
+        </View>
       </Modal>
 
       {/* =================== МОДАЛКА СОЗДАНИЯ ЗАДАЧИ =================== */}
@@ -852,34 +894,41 @@ const styles = StyleSheet.create({
   },
   burgerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-start',
+    flexDirection: 'row',
+  },
+  burgerBackdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
   },
   drawerContainer: {
-    backgroundColor: '#121622',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    paddingHorizontal: 22,
-    paddingTop: Platform.OS === 'ios' ? 56 : 28,
-    paddingBottom: 24,
-    borderWidth: 1,
-    borderColor: '#202738',
+    height: '100%',
+    backgroundColor: '#0E131E',
+    paddingHorizontal: 18,
+    paddingTop: Platform.OS === 'ios' ? 56 : 32,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    borderRightWidth: 1,
+    borderRightColor: '#1E2536',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.8,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 8, height: 0 },
+    shadowOpacity: 0.85,
+    shadowRadius: 18,
+    elevation: 16,
+    justifyContent: 'space-between',
   },
   drawerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+  },
+  drawerProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   drawerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(0, 229, 255, 0.15)',
     borderWidth: 1.5,
     borderColor: '#00E5FF',
@@ -889,7 +938,7 @@ const styles = StyleSheet.create({
   },
   drawerAvatarText: {
     color: '#00E5FF',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
   },
   drawerUserInfo: {
@@ -897,32 +946,22 @@ const styles = StyleSheet.create({
   },
   drawerUserName: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
   },
-  drawerRoleBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#182133',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: '#263145',
-  },
-  drawerRoleText: {
-    color: '#00E5FF',
-    fontSize: 11,
-    fontWeight: '700',
+  drawerUserSub: {
+    color: '#636C7E',
+    fontSize: 12,
+    marginTop: 2,
   },
   drawerDivider: {
     height: 1,
-    backgroundColor: '#1E2536',
-    marginVertical: 12,
+    backgroundColor: '#1A2130',
+    marginVertical: 18,
   },
   drawerNav: {
+    flex: 1,
     gap: 12,
-    marginVertical: 8,
   },
   drawerItem: {
     flexDirection: 'row',
@@ -956,7 +995,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   drawerFooter: {
-    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#1A2130',
   },
   logoutButton: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Text, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { TabType } from '../types';
 
@@ -19,7 +19,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentTab, onSelect
         >
           <Ionicons
             name={currentTab === 'tasks' ? 'checkbox' : 'checkbox-outline'}
-            size={22}
+            size={20}
             color={currentTab === 'tasks' ? '#00E5FF' : '#7E8696'}
           />
           <Text style={[styles.tabLabel, currentTab === 'tasks' && styles.activeTabLabel]}>
@@ -34,7 +34,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentTab, onSelect
         >
           <Ionicons
             name={currentTab === 'schedule' ? 'calendar' : 'calendar-outline'}
-            size={22}
+            size={20}
             color={currentTab === 'schedule' ? '#00E5FF' : '#7E8696'}
           />
           <Text style={[styles.tabLabel, currentTab === 'schedule' && styles.activeTabLabel]}>
@@ -49,7 +49,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentTab, onSelect
         >
           <Ionicons
             name={currentTab === 'moderation' ? 'shield-checkmark' : 'shield-checkmark-outline'}
-            size={22}
+            size={20}
             color={currentTab === 'moderation' ? '#00E5FF' : '#7E8696'}
           />
           <Text style={[styles.tabLabel, currentTab === 'moderation' && styles.activeTabLabel]}>
@@ -64,17 +64,18 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ currentTab, onSelect
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
+    bottom: Platform.OS === 'ios' ? 34 : 20,
+    left: 16,
+    right: 16,
     alignItems: 'center',
+    zIndex: 99,
   },
   container: {
     flexDirection: 'row',
     backgroundColor: '#121622',
     borderRadius: 36,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: '#202738',
     shadowColor: '#000',
@@ -83,23 +84,26 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 12,
     width: '100%',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
     borderRadius: 24,
   },
   activeTab: {
     backgroundColor: '#172233',
     borderWidth: 1,
-    borderColor: 'rgba(0, 229, 255, 0.3)',
+    borderColor: 'rgba(0, 229, 255, 0.35)',
   },
   tabLabel: {
     color: '#7E8696',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     marginLeft: 6,
   },

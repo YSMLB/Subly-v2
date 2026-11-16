@@ -47,3 +47,25 @@ CREATE TABLE proposed_changes(
     created_add TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX i_change_user_day ON proposed_changes(user_id, status);
+
+
+CREATE TABLE verification_codes (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    attempts INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_verification_email ON verification_codes(email);
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    group_name VARCHAR(50) NOT NULL,
+    role VARCHAR(20) DEFAULT 'student',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
