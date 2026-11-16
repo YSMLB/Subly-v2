@@ -19,7 +19,7 @@ func NewSMTPMailer(port int, host, user, pass string) *SMTPMailer{
 
 func (s *SMTPMailer)SendVerificationCode(toEmail, code string) error{
 	msg := gomail.NewMessage()
-	msg.SetHeader("From". fmt.Sprintf("Subly <%s>", s.from))
+	msg.SetHeader("From", fmt.Sprintf("Subly <%s>", s.from))
 	msg.SetHeader("To", toEmail)
 	msg.SetHeader("Subject", "Код подтверждения регистрации Subly")
 
